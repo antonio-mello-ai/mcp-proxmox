@@ -91,7 +91,9 @@ def rollback_snapshot(
 
     # Verify snapshot exists
     snapshots = client.get_snapshots(node, vmid, guest_type)
-    snapshot_names = [s.get("name") for s in snapshots if s.get("name") != "current"]
+    snapshot_names: list[str] = [
+        str(s.get("name")) for s in snapshots if s.get("name") != "current"
+    ]
     if name not in snapshot_names:
         return {
             "error": f"Snapshot '{name}' not found for {type_label} '{guest_name}' ({vmid}). "

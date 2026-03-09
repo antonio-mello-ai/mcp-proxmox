@@ -7,17 +7,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_proxmox import __version__
 from mcp_proxmox.client import ProxmoxClient
 from mcp_proxmox.config import ProxmoxConfig
 from mcp_proxmox.tools import discovery, lifecycle, monitoring, snapshots
 
-mcp = FastMCP(
-    "mcp-proxmox",
-    version=__version__,
-    description="Manage Proxmox VE clusters — list nodes, VMs, containers, "
-    "control lifecycle, manage snapshots, and monitor resources.",
-)
+mcp = FastMCP("mcp-proxmox")  # type: ignore[call-arg]
 
 _client: ProxmoxClient | None = None
 

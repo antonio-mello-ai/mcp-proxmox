@@ -30,7 +30,7 @@ jobs:
           ruff format --check src/ tests/
 
       - name: Type check
-        run: mypy src/ --ignore-missing-imports
+        run: mypy src/
 
       - name: Test
         run: pytest -v

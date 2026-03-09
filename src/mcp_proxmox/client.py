@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
-from proxmoxer import ProxmoxAPI
+from proxmoxer import ProxmoxAPI  # type: ignore[import-untyped]
 
 from mcp_proxmox.config import ProxmoxConfig
 
@@ -18,10 +18,10 @@ class ProxmoxClient:
 
     def __init__(self, config: ProxmoxConfig) -> None:
         self._config = config
-        self._api: ProxmoxAPI | None = None
+        self._api: Any = None
 
     @property
-    def api(self) -> ProxmoxAPI:
+    def api(self) -> Any:
         """Lazy-initialize and return the Proxmox API connection."""
         if self._api is None:
             self._api = ProxmoxAPI(
@@ -37,17 +37,17 @@ class ProxmoxClient:
 
     def get_nodes(self) -> list[dict[str, Any]]:
         """List all nodes in the cluster."""
-        return self.api.nodes.get()
+        return cast(list[dict[str, Any]], self.api.nodes.get())
 
     def get_node_status(self, node: str) -> dict[str, Any]:
         """Get detailed status for a specific node."""
-        return self.api.nodes(node).status.get()
+        return cast(dict[str, Any], self.api.nodes(node).status.get())
 
     def get_cluster_resources(self, resource_type: str | None = None) -> list[dict[str, Any]]:
         """Get cluster resources, optionally filtered by type (vm, storage, node)."""
         if resource_type:
-            return self.api.cluster.resources.get(type=resource_type)
-        return self.api.cluster.resources.get()
+            return cast(list[dict[str, Any]], self.api.cluster.resources.get(type=resource_type))
+        return cast(list[dict[str, Any]], self.api.cluster.resources.get())
 
     def find_guest(self, vmid: int) -> dict[str, Any] | None:
         """Find a VM or container by VMID across all nodes.
@@ -63,14 +63,14 @@ class ProxmoxClient:
     def get_guest_status(self, node: str, vmid: int, guest_type: str) -> dict[str, Any]:
         """Get current status of a VM or container."""
         if guest_type == "qemu":
-            return self.api.nodes(node).qemu(vmid).status.current.get()
-        return self.api.nodes(node).lxc(vmid).status.current.get()
+            return cast(dict[str, Any], self.api.nodes(node).qemu(vmid).status.current.get())
+        return cast(dict[str, Any], self.api.nodes(node).lxc(vmid).status.current.get())
 
     def get_guest_config(self, node: str, vmid: int, guest_type: str) -> dict[str, Any]:
         """Get configuration of a VM or container."""
         if guest_type == "qemu":
-            return self.api.nodes(node).qemu(vmid).config.get()
-        return self.api.nodes(node).lxc(vmid).config.get()
+            return cast(dict[str, Any], self.api.nodes(node).qemu(vmid).config.get())
+        return cast(dict[str, Any], self.api.nodes(node).lxc(vmid).config.get())
 
     def guest_action(self, node: str, vmid: int, guest_type: str, action: str) -> str:
         """Execute a lifecycle action (start, stop, shutdown, reboot) on a guest.
@@ -81,13 +81,13 @@ class ProxmoxClient:
             endpoint = getattr(self.api.nodes(node).qemu(vmid).status, action)
         else:
             endpoint = getattr(self.api.nodes(node).lxc(vmid).status, action)
-        return endpoint.post()
+        return cast(str, endpoint.post())
 
     def get_snapshots(self, node: str, vmid: int, guest_type: str) -> list[dict[str, Any]]:
         """List snapshots for a VM or container."""
         if guest_type == "qemu":
-            return self.api.nodes(node).qemu(vmid).snapshot.get()
-        return self.api.nodes(node).lxc(vmid).snapshot.get()
+            return cast(list[dict[str, Any]], self.api.nodes(node).qemu(vmid).snapshot.get())
+        return cast(list[dict[str, Any]], self.api.nodes(node).lxc(vmid).snapshot.get())
 
     def create_snapshot(
         self,
@@ -102,27 +102,33 @@ class ProxmoxClient:
         if description:
             params["description"] = description
         if guest_type == "qemu":
-            return self.api.nodes(node).qemu(vmid).snapshot.post(**params)
-        return self.api.nodes(node).lxc(vmid).snapshot.post(**params)
+            return cast(str, self.api.nodes(node).qemu(vmid).snapshot.post(**params))
+        return cast(str, self.api.nodes(node).lxc(vmid).snapshot.post(**params))
 
     def rollback_snapshot(self, node: str, vmid: int, guest_type: str, name: str) -> str:
         """Rollback to a snapshot. Returns the UPID of the task."""
         if guest_type == "qemu":
-            return self.api.nodes(node).qemu(vmid).snapshot(name).rollback.post()
-        return self.api.nodes(node).lxc(vmid).snapshot(name).rollback.post()
+            return cast(str, self.api.nodes(node).qemu(vmid).snapshot(name).rollback.post())
+        return cast(str, self.api.nodes(node).lxc(vmid).snapshot(name).rollback.post())
 
     def get_tasks(self, node: str, limit: int = 20) -> list[dict[str, Any]]:
         """List recent tasks on a node."""
-        return self.api.nodes(node).tasks.get(limit=limit)
+        return cast(list[dict[str, Any]], self.api.nodes(node).tasks.get(limit=limit))
 
     def get_task_status(self, node: str, upid: str) -> dict[str, Any]:
         """Get status of a specific task."""
-        return self.api.nodes(node).tasks(upid).status.get()
+        return cast(dict[str, Any], self.api.nodes(node).tasks(upid).status.get())
 
     def get_rrd_data(
         self, node: str, vmid: int, guest_type: str, timeframe: str = "hour"
     ) -> list[dict[str, Any]]:
         """Get RRD metrics data for a guest. Timeframe: hour, day, week, month, year."""
         if guest_type == "qemu":
-            return self.api.nodes(node).qemu(vmid).rrddata.get(timeframe=timeframe)
-        return self.api.nodes(node).lxc(vmid).rrddata.get(timeframe=timeframe)
+            return cast(
+                list[dict[str, Any]],
+                self.api.nodes(node).qemu(vmid).rrddata.get(timeframe=timeframe),
+            )
+        return cast(
+            list[dict[str, Any]],
+            self.api.nodes(node).lxc(vmid).rrddata.get(timeframe=timeframe),
+        )
