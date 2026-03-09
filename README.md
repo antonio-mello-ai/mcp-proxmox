@@ -129,6 +129,22 @@ Add to Cursor Settings > MCP with the same configuration as above.
 | `clone_guest` | Clone a VM or CT (full or linked clone, cross-node support) |
 | `delete_guest` | Permanently delete a stopped VM or CT (requires confirmation) |
 
+### Backup & Restore
+
+| Tool | Description |
+|------|-------------|
+| `list_backups` | List backup files (filter by node, storage, or VMID) |
+| `create_backup` | Create a vzdump backup (snapshot/suspend/stop modes, zstd/lzo/gzip) |
+| `restore_backup` | Restore a VM or CT from a backup file (requires confirmation) |
+
+### Command Execution
+
+| Tool | Description |
+|------|-------------|
+| `exec_command` | Run a command inside a QEMU VM via guest agent |
+
+> **Note:** `exec_command` requires `qemu-guest-agent` installed and running inside the VM. Not supported for LXC containers (Proxmox API limitation).
+
 ### Snapshots
 
 | Tool | Description |
@@ -166,6 +182,11 @@ Once connected, you can ask your AI assistant:
 - "Clone VM 100 as a test environment"
 - "Create a Debian container from template"
 - "Delete the old test VM 999"
+- "Back up VM 100 to the zfs-backup-storage"
+- "Show me all backups for VM 200"
+- "Restore the latest backup of container 101"
+- "Run 'df -h' on VM 100"
+- "Check if nginx is running on VM 200"
 
 ## Development
 

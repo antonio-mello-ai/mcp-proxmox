@@ -9,7 +9,16 @@ from mcp.server.fastmcp import FastMCP
 
 from mcp_proxmox.client import ProxmoxClient
 from mcp_proxmox.config import ProxmoxConfig
-from mcp_proxmox.tools import discovery, lifecycle, monitoring, provisioning, snapshots, storage
+from mcp_proxmox.tools import (
+    backup,
+    discovery,
+    execute,
+    lifecycle,
+    monitoring,
+    provisioning,
+    snapshots,
+    storage,
+)
 
 mcp = FastMCP("mcp-proxmox")  # type: ignore[call-arg]
 
@@ -350,6 +359,88 @@ def delete_guest(vmid: int, confirm: bool = False) -> str:
         confirm: Must be true to execute. First call without confirm shows a warning.
     """
     return _to_text(provisioning.delete_guest(_get_client(), vmid, confirm))
+
+
+# --- Backup Tools ---
+
+
+@mcp.tool()
+def list_backups(
+    node: str | None = None,
+    storage_name: str | None = None,
+    vmid: int | None = None,
+) -> str:
+    """List backup files across storages.
+
+    Args:
+        node: Optional. Filter by node name.
+        storage_name: Optional. Filter by storage name.
+        vmid: Optional. Filter by VMID to see backups of a specific guest.
+    """
+    return _to_text(backup.list_backups(_get_client(), node, storage_name, vmid))
+
+
+@mcp.tool()
+def create_backup(
+    vmid: int,
+    storage_name: str = "local",
+    mode: str = "snapshot",
+    compress: str = "zstd",
+    notes: str = "",
+) -> str:
+    """Create a backup (vzdump) of a VM or container.
+
+    Args:
+        vmid: The numeric ID of the VM or container to back up.
+        storage_name: Target storage for the backup (default 'local').
+        mode: Backup mode: 'snapshot' (no downtime, default), 'suspend', or 'stop'.
+        compress: Compression: 'zstd' (default), 'lzo', 'gzip', or '0' (none).
+        notes: Optional notes/description for the backup.
+    """
+    return _to_text(backup.create_backup(_get_client(), vmid, storage_name, mode, compress, notes))
+
+
+@mcp.tool()
+def restore_backup(
+    volid: str,
+    node: str,
+    vmid: int | None = None,
+    storage_pool: str = "local-lvm",
+    guest_type: str = "vm",
+    confirm: bool = False,
+) -> str:
+    """Restore a VM or container from a backup file.
+
+    Args:
+        volid: Volume ID of the backup (e.g. 'local:backup/vzdump-qemu-100-2024_03_04.vma.zst').
+            Use list_backups to find available backups.
+        node: Target node for the restored guest.
+        vmid: Optional VMID for the restored guest. Auto-assigned if not provided.
+        storage_pool: Storage for restored disks (default 'local-lvm').
+        guest_type: Type of guest: 'vm' or 'container'.
+        confirm: Must be true to execute. First call without confirm shows a warning.
+    """
+    return _to_text(
+        backup.restore_backup(_get_client(), volid, node, vmid, storage_pool, guest_type, confirm)
+    )
+
+
+# --- Command Execution Tools ---
+
+
+@mcp.tool()
+def exec_command(vmid: int, command: str, timeout: int = 30) -> str:
+    """Execute a command inside a QEMU VM via the guest agent.
+
+    Requires qemu-guest-agent to be installed and running inside the VM.
+    Not supported for LXC containers.
+
+    Args:
+        vmid: The numeric ID of the VM.
+        command: The command to execute (e.g. 'hostname', 'df -h', 'systemctl status nginx').
+        timeout: Max seconds to wait for command completion (default 30, max 300).
+    """
+    return _to_text(execute.exec_command(_get_client(), vmid, command, timeout))
 
 
 # --- Monitoring Tools ---

@@ -173,6 +173,39 @@ class ProxmoxClient:
             return cast(str, self.api.nodes(node).qemu(vmid).snapshot(name).delete())
         return cast(str, self.api.nodes(node).lxc(vmid).snapshot(name).delete())
 
+    # --- Backup ---
+
+    def create_backup(self, node: str, vmid: int, **params: Any) -> str:
+        """Create a backup via vzdump. Returns the UPID of the task."""
+        return cast(str, self.api.nodes(node).vzdump.post(vmid=vmid, **params))
+
+    def restore_vm(self, node: str, vmid: int, archive: str, **params: Any) -> str:
+        """Restore a VM from a backup archive. Returns the UPID of the task."""
+        return cast(str, self.api.nodes(node).qemu.post(vmid=vmid, archive=archive, **params))
+
+    def restore_container(self, node: str, vmid: int, archive: str, **params: Any) -> str:
+        """Restore a container from a backup archive. Returns the UPID of the task."""
+        return cast(
+            str,
+            self.api.nodes(node).lxc.post(vmid=vmid, ostemplate=archive, restore=1, **params),
+        )
+
+    # --- Command Execution ---
+
+    def exec_qemu_agent(self, node: str, vmid: int, command: str) -> dict[str, Any]:
+        """Execute a command via QEMU guest agent. Returns the PID."""
+        return cast(
+            dict[str, Any],
+            self.api.nodes(node).qemu(vmid).agent.exec.post(command=command),
+        )
+
+    def exec_qemu_agent_status(self, node: str, vmid: int, pid: int) -> dict[str, Any]:
+        """Get execution result from QEMU guest agent by PID."""
+        return cast(
+            dict[str, Any],
+            self.api.nodes(node).qemu(vmid).agent("exec-status").get(pid=pid),
+        )
+
     def get_tasks(self, node: str, limit: int = 20) -> list[dict[str, Any]]:
         """List recent tasks on a node."""
         return cast(list[dict[str, Any]], self.api.nodes(node).tasks.get(limit=limit))
