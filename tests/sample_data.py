@@ -79,6 +79,65 @@ SAMPLE_NODE_STATUS: dict[str, Any] = {
     "loadavg": ["0.45", "0.38", "0.32"],
 }
 
+SAMPLE_STORAGES: list[dict[str, Any]] = [
+    {
+        "storage": "local",
+        "type": "dir",
+        "content": "iso,vztmpl,backup",
+        "enabled": 1,
+        "shared": 0,
+        "total": 107374182400,
+        "used": 21474836480,
+        "avail": 85899345920,
+    },
+    {
+        "storage": "local-lvm",
+        "type": "lvmthin",
+        "content": "images,rootdir",
+        "enabled": 1,
+        "shared": 0,
+        "total": 536870912000,
+        "used": 107374182400,
+        "avail": 429496729600,
+    },
+    {
+        "storage": "zfs-pool",
+        "type": "zfspool",
+        "content": "images,rootdir",
+        "enabled": 1,
+        "shared": 0,
+        "total": 1099511627776,
+        "used": 214748364800,
+        "avail": 884763262976,
+    },
+]
+
+SAMPLE_STORAGE_CONTENT: list[dict[str, Any]] = [
+    {
+        "volid": "local:iso/ubuntu-24.04-live-server-amd64.iso",
+        "content": "iso",
+        "format": "iso",
+        "size": 2415919104,
+        "ctime": 1709510400,
+    },
+    {
+        "volid": "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst",
+        "content": "vztmpl",
+        "format": "tzst",
+        "size": 126877696,
+        "ctime": 1709424000,
+    },
+    {
+        "volid": "local:backup/vzdump-qemu-100-2024_03_04-03_00_01.vma.zst",
+        "content": "backup",
+        "format": "vma.zst",
+        "size": 5368709120,
+        "ctime": 1709524800,
+        "vmid": 100,
+        "notes": "Scheduled backup",
+    },
+]
+
 SAMPLE_SNAPSHOTS = [
     {
         "name": "before-upgrade",

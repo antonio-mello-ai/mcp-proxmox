@@ -111,6 +111,68 @@ class ProxmoxClient:
             return cast(str, self.api.nodes(node).qemu(vmid).snapshot(name).rollback.post())
         return cast(str, self.api.nodes(node).lxc(vmid).snapshot(name).rollback.post())
 
+    # --- Storage ---
+
+    def get_storages(self, node: str) -> list[dict[str, Any]]:
+        """List storage pools available on a node."""
+        return cast(list[dict[str, Any]], self.api.nodes(node).storage.get())
+
+    def get_storage_content(
+        self,
+        node: str,
+        storage: str,
+        content_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List content of a storage pool (ISOs, templates, disk images, backups).
+
+        content_type: 'iso', 'vztmpl', 'backup', 'images', 'rootdir', or None for all.
+        """
+        params: dict[str, Any] = {}
+        if content_type:
+            params["content"] = content_type
+        return cast(
+            list[dict[str, Any]], self.api.nodes(node).storage(storage).content.get(**params)
+        )
+
+    # --- Provisioning ---
+
+    def get_next_vmid(self) -> int:
+        """Get the next available VMID from the cluster."""
+        return cast(int, self.api.cluster.nextid.get())
+
+    def create_vm(self, node: str, vmid: int, **params: Any) -> str:
+        """Create a QEMU VM. Returns the UPID of the task."""
+        return cast(str, self.api.nodes(node).qemu.post(vmid=vmid, **params))
+
+    def create_container(self, node: str, vmid: int, **params: Any) -> str:
+        """Create an LXC container. Returns the UPID of the task."""
+        return cast(str, self.api.nodes(node).lxc.post(vmid=vmid, **params))
+
+    def clone_guest(
+        self,
+        node: str,
+        vmid: int,
+        guest_type: str,
+        newid: int,
+        **params: Any,
+    ) -> str:
+        """Clone a VM or container. Returns the UPID of the task."""
+        if guest_type == "qemu":
+            return cast(str, self.api.nodes(node).qemu(vmid).clone.post(newid=newid, **params))
+        return cast(str, self.api.nodes(node).lxc(vmid).clone.post(newid=newid, **params))
+
+    def delete_guest(self, node: str, vmid: int, guest_type: str) -> str:
+        """Delete a VM or container. Returns the UPID of the task."""
+        if guest_type == "qemu":
+            return cast(str, self.api.nodes(node).qemu(vmid).delete())
+        return cast(str, self.api.nodes(node).lxc(vmid).delete())
+
+    def delete_snapshot(self, node: str, vmid: int, guest_type: str, name: str) -> str:
+        """Delete a snapshot. Returns the UPID of the task."""
+        if guest_type == "qemu":
+            return cast(str, self.api.nodes(node).qemu(vmid).snapshot(name).delete())
+        return cast(str, self.api.nodes(node).lxc(vmid).snapshot(name).delete())
+
     def get_tasks(self, node: str, limit: int = 20) -> list[dict[str, Any]]:
         """List recent tasks on a node."""
         return cast(list[dict[str, Any]], self.api.nodes(node).tasks.get(limit=limit))

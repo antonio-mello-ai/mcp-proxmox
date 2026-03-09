@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from mcp_proxmox.tools.snapshots import (
     create_snapshot,
+    delete_snapshot,
     list_snapshots,
     rollback_snapshot,
 )
@@ -82,3 +83,36 @@ def test_rollback_snapshot_not_found(mock_client):
     assert "error" in result
     assert "not found" in result["error"]
     assert "before-upgrade" in result["error"]  # suggests available snapshots
+
+
+def test_delete_snapshot_requires_confirmation(mock_client):
+    mock_client._api.cluster.resources.get.return_value = SAMPLE_CLUSTER_RESOURCES
+    mock_client._api.nodes("pve").qemu(100).snapshot.get.return_value = SAMPLE_SNAPSHOTS
+
+    result = delete_snapshot(mock_client, 100, "before-upgrade")
+
+    assert "warning" in result
+    assert "confirm=true" in result["warning"]
+
+
+def test_delete_snapshot_with_confirmation(mock_client):
+    mock_client._api.cluster.resources.get.return_value = SAMPLE_CLUSTER_RESOURCES
+    mock_client._api.nodes("pve").qemu(100).snapshot.get.return_value = SAMPLE_SNAPSHOTS
+    mock_client._api.nodes("pve").qemu(100).snapshot(
+        "before-upgrade"
+    ).delete.return_value = "UPID:pve:00001234:00000000:65F00000:qmdelsnapshot:100:test@pam:"
+
+    result = delete_snapshot(mock_client, 100, "before-upgrade", confirm=True)
+
+    assert result["success"] is True
+    assert result["snapshot_name"] == "before-upgrade"
+
+
+def test_delete_snapshot_not_found(mock_client):
+    mock_client._api.cluster.resources.get.return_value = SAMPLE_CLUSTER_RESOURCES
+    mock_client._api.nodes("pve").qemu(100).snapshot.get.return_value = SAMPLE_SNAPSHOTS
+
+    result = delete_snapshot(mock_client, 100, "nonexistent", confirm=True)
+
+    assert "error" in result
+    assert "not found" in result["error"]

@@ -123,3 +123,53 @@ def rollback_snapshot(
             f"Rollback to snapshot '{name}' started for {type_label} '{guest_name}' ({vmid})"
         ),
     }
+
+
+def delete_snapshot(
+    client: ProxmoxClient,
+    vmid: int,
+    name: str,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Delete a snapshot from a VM or container. Requires confirm=true."""
+    guest = client.find_guest(vmid)
+    if not guest:
+        return {"error": f"Guest with VMID {vmid} not found in cluster"}
+
+    node = guest["node"]
+    guest_type = guest["type"]
+    guest_name = guest.get("name", f"VMID {vmid}")
+    type_label = "VM" if guest_type == "qemu" else "Container"
+
+    # Verify snapshot exists
+    snapshots = client.get_snapshots(node, vmid, guest_type)
+    snapshot_names: list[str] = [
+        str(s.get("name")) for s in snapshots if s.get("name") != "current"
+    ]
+    if name not in snapshot_names:
+        return {
+            "error": f"Snapshot '{name}' not found for {type_label} '{guest_name}' ({vmid}). "
+            f"Available snapshots: {', '.join(snapshot_names) or 'none'}",
+        }
+
+    if not confirm:
+        return {
+            "warning": f"This will delete snapshot '{name}' from "
+            f"{type_label} '{guest_name}' ({vmid}). "
+            "Call again with confirm=true to proceed.",
+            "vmid": vmid,
+            "name": guest_name,
+            "snapshot": name,
+        }
+
+    upid = client.delete_snapshot(node, vmid, guest_type, name)
+
+    return {
+        "success": True,
+        "vmid": vmid,
+        "guest_name": guest_name,
+        "type": type_label,
+        "snapshot_name": name,
+        "task_id": upid,
+        "message": (f"Snapshot '{name}' deletion started for {type_label} '{guest_name}' ({vmid})"),
+    }

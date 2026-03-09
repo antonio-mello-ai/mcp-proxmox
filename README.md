@@ -2,7 +2,7 @@
 
 MCP server for managing Proxmox VE clusters through AI assistants like Claude, Cursor, and Cline.
 
-Query nodes, VMs, and containers. Start, stop, and snapshot guests. Monitor resource usage. All through natural language.
+Provision, manage, and monitor your entire Proxmox infrastructure through natural language. Create VMs and containers, manage snapshots, browse storage, and more.
 
 ## Quick Start
 
@@ -36,9 +36,13 @@ PROXMOX_VERIFY_SSL=false            # Default: false
 2. Go to **Datacenter** > **Permissions** > **API Tokens**
 3. Click **Add** and create a token for your user
 4. **Uncheck** "Privilege Separation" for full access, or assign specific permissions:
-   - `VM.Audit` — read VM/CT status
+   - `VM.Audit` — read VM/CT status and config
    - `VM.PowerMgmt` — start/stop/shutdown/reboot
-   - `VM.Snapshot` — create/rollback snapshots
+   - `VM.Snapshot` — create/rollback/delete snapshots
+   - `VM.Allocate` — create/delete/clone VMs and containers
+   - `VM.Clone` — clone operations
+   - `Datastore.Audit` — list storages and browse content
+   - `Datastore.AllocateSpace` — allocate disk space for new VMs/CTs
    - `Sys.Audit` — read node status and tasks
    - `VM.Monitor` — access QEMU monitor (for metrics)
 
@@ -109,6 +113,22 @@ Add to Cursor Settings > MCP with the same configuration as above.
 | `shutdown_guest` | Graceful ACPI/init shutdown |
 | `reboot_guest` | Reboot (requires confirmation) |
 
+### Storage
+
+| Tool | Description |
+|------|-------------|
+| `list_storages` | List storage pools with capacity and usage (filter by node) |
+| `list_storage_content` | Browse ISOs, templates, backups, and disk images |
+
+### Provisioning
+
+| Tool | Description |
+|------|-------------|
+| `create_vm` | Create a QEMU VM with configurable CPU, memory, disk, ISO, and network |
+| `create_container` | Create an LXC container from a template |
+| `clone_guest` | Clone a VM or CT (full or linked clone, cross-node support) |
+| `delete_guest` | Permanently delete a stopped VM or CT (requires confirmation) |
+
 ### Snapshots
 
 | Tool | Description |
@@ -116,6 +136,7 @@ Add to Cursor Settings > MCP with the same configuration as above.
 | `list_snapshots` | List all snapshots for a VM/CT |
 | `create_snapshot` | Create a new snapshot |
 | `rollback_snapshot` | Rollback to a snapshot (requires confirmation) |
+| `delete_snapshot` | Delete a snapshot (requires confirmation) |
 
 ### Monitoring
 
@@ -126,7 +147,7 @@ Add to Cursor Settings > MCP with the same configuration as above.
 
 ### Safety
 
-Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
+Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
 
 ## Examples
 
@@ -139,6 +160,12 @@ Once connected, you can ask your AI assistant:
 - "Show me the CPU usage of VM 100 over the last day"
 - "What tasks ran on node pve recently?"
 - "Which VMs are stopped?"
+- "What storage pools do I have and how full are they?"
+- "Show me available ISO images"
+- "Create a new Ubuntu VM with 4 cores and 8GB RAM"
+- "Clone VM 100 as a test environment"
+- "Create a Debian container from template"
+- "Delete the old test VM 999"
 
 ## Development
 
