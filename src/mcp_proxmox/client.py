@@ -206,6 +206,32 @@ class ProxmoxClient:
             self.api.nodes(node).qemu(vmid).agent("exec-status").get(pid=pid),
         )
 
+    # --- Network ---
+
+    def get_networks(self, node: str) -> list[dict[str, Any]]:
+        """List network interfaces/bridges on a node."""
+        return cast(list[dict[str, Any]], self.api.nodes(node).network.get())
+
+    # --- Resize ---
+
+    def update_guest_config(
+        self, node: str, vmid: int, guest_type: str, **params: Any
+    ) -> None:
+        """Update VM or container configuration (CPU, memory, etc.)."""
+        if guest_type == "qemu":
+            self.api.nodes(node).qemu(vmid).config.put(**params)
+        else:
+            self.api.nodes(node).lxc(vmid).config.put(**params)
+
+    def resize_guest_disk(
+        self, node: str, vmid: int, guest_type: str, disk: str, size: str
+    ) -> None:
+        """Resize a guest disk. size format: '+10G' (relative) or '50G' (absolute)."""
+        if guest_type == "qemu":
+            self.api.nodes(node).qemu(vmid).resize.put(disk=disk, size=size)
+        else:
+            self.api.nodes(node).lxc(vmid).resize.put(disk=disk, size=size)
+
     def get_tasks(self, node: str, limit: int = 20) -> list[dict[str, Any]]:
         """List recent tasks on a node."""
         return cast(list[dict[str, Any]], self.api.nodes(node).tasks.get(limit=limit))

@@ -15,7 +15,9 @@ from mcp_proxmox.tools import (
     execute,
     lifecycle,
     monitoring,
+    network,
     provisioning,
+    resize,
     snapshots,
     storage,
 )
@@ -467,6 +469,53 @@ def list_tasks(node: str, limit: int = 20, status: str | None = None) -> str:
         status: Optional. Filter by task status ('ok', 'error', 'running').
     """
     return _to_text(monitoring.list_tasks(_get_client(), node, limit, status))
+
+
+# --- Network Tools ---
+
+
+@mcp.tool()
+def list_networks(node: str) -> str:
+    """List network interfaces, bridges, and bonds on a Proxmox node.
+
+    Args:
+        node: Name of the Proxmox node (e.g. 'pve').
+    """
+    return _to_text(network.list_networks(_get_client(), node))
+
+
+# --- Resize Tools ---
+
+
+@mcp.tool()
+def resize_guest(
+    vmid: int,
+    cores: int | None = None,
+    memory: int | None = None,
+    disk_size: str | None = None,
+    disk: str = "scsi0",
+    confirm: bool = False,
+) -> str:
+    """Resize CPU, memory, and/or disk of a VM or container.
+
+    At least one of cores, memory, or disk_size must be provided.
+    CPU and memory changes take effect on next reboot for running guests.
+    Disk resize is immediate but IRREVERSIBLE (disks can only grow).
+
+    Args:
+        vmid: The numeric ID of the VM or container.
+        cores: New number of CPU cores.
+        memory: New memory size in MB.
+        disk_size: Disk size change. Use '+10G' to add 10GB, or '50G' for absolute size.
+            Supported units: K, M, G, T.
+        disk: Disk name to resize (default 'scsi0' for VMs, auto-mapped to 'rootfs' for CTs).
+        confirm: Must be true to execute. First call without confirm shows a warning.
+    """
+    return _to_text(
+        resize.resize_guest(
+            _get_client(), vmid, cores, memory, disk_size, disk, confirm
+        )
+    )
 
 
 def main() -> None:

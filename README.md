@@ -44,6 +44,9 @@ PROXMOX_VERIFY_SSL=false            # Default: false
    - `Datastore.Audit` — list storages and browse content
    - `Datastore.AllocateSpace` — allocate disk space for new VMs/CTs
    - `Sys.Audit` — read node status and tasks
+   - `VM.Config.Disk` — resize disks
+   - `VM.Config.CPU` — change CPU allocation
+   - `VM.Config.Memory` — change memory allocation
    - `VM.Monitor` — access QEMU monitor (for metrics)
 
 ## Integration
@@ -154,6 +157,18 @@ Add to Cursor Settings > MCP with the same configuration as above.
 | `rollback_snapshot` | Rollback to a snapshot (requires confirmation) |
 | `delete_snapshot` | Delete a snapshot (requires confirmation) |
 
+### Network
+
+| Tool | Description |
+|------|-------------|
+| `list_networks` | List bridges, bonds, and physical interfaces on a node |
+
+### Resize
+
+| Tool | Description |
+|------|-------------|
+| `resize_guest` | Resize CPU, memory, and/or disk of a VM or container (requires confirmation) |
+
 ### Monitoring
 
 | Tool | Description |
@@ -163,7 +178,7 @@ Add to Cursor Settings > MCP with the same configuration as above.
 
 ### Safety
 
-Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
+Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`, `resize_guest`, `restore_backup`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
 
 ## Examples
 
@@ -187,6 +202,9 @@ Once connected, you can ask your AI assistant:
 - "Restore the latest backup of container 101"
 - "Run 'df -h' on VM 100"
 - "Check if nginx is running on VM 200"
+- "Show me the network bridges on node pve"
+- "Give VM 100 more CPU — bump it to 8 cores"
+- "Add 50GB of disk to container 101"
 
 ## Development
 

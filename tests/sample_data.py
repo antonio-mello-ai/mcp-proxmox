@@ -138,6 +138,36 @@ SAMPLE_STORAGE_CONTENT: list[dict[str, Any]] = [
     },
 ]
 
+SAMPLE_NETWORKS: list[dict[str, Any]] = [
+    {
+        "iface": "vmbr0",
+        "type": "bridge",
+        "active": 1,
+        "address": "192.168.1.100",
+        "netmask": "255.255.255.0",
+        "gateway": "192.168.1.1",
+        "cidr": "192.168.1.100/24",
+        "bridge_ports": "enp3s0",
+        "bridge_stp": "off",
+        "autostart": 1,
+    },
+    {
+        "iface": "enp3s0",
+        "type": "eth",
+        "active": 1,
+    },
+    {
+        "iface": "vlan10",
+        "type": "vlan",
+        "active": 1,
+        "address": "10.10.10.1",
+        "netmask": "255.255.255.0",
+        "cidr": "10.10.10.1/24",
+        "autostart": 1,
+        "comments": "Management VLAN",
+    },
+]
+
 SAMPLE_SNAPSHOTS = [
     {
         "name": "before-upgrade",
