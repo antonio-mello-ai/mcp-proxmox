@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-proxmox"
+version = "0.1.0"
+description = "MCP server for managing Proxmox VE clusters through AI assistants"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Antonio Mello", email = "antonio.mello@felhen.com.br" },
+]
+keywords = ["mcp", "proxmox", "ai", "llm", "server", "infrastructure"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "mcp>=1.26.0",
+    "proxmoxer>=2.1.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/antonio-mello-ai/mcp-proxmox"
+Repository = "https://github.com/antonio-mello-ai/mcp-proxmox"
+Issues = "https://github.com/antonio-mello-ai/mcp-proxmox/issues"
+
+[project.scripts]
+mcp-proxmox = "mcp_proxmox.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_proxmox"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/mcp_proxmox"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.9.0",
+    "mypy>=1.14",
+    "pre-commit>=4.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
