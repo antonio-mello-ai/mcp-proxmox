@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.antonio-mello-ai/mcp-proxmox",
+  "description": "MCP server for managing Proxmox VE clusters through AI assistants. 29 tools covering VMs, containers, snapshots, storage, network, firewall, migration, templates, cloud-init, monitoring, and command execution.",
+  "repository": {
+    "url": "https://github.com/antonio-mello-ai/mcp-proxmox",
+    "source": "github"
+  },
+  "version": "1.2.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mcp-proxmox",
+      "version": "1.2.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
