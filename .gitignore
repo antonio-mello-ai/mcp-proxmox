@@ -14,3 +14,4 @@ venv/
 .pytest_cache/
 *.so
 .DS_Store
+.mcpregistry_*
