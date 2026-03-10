@@ -52,9 +52,9 @@ def test_migrate_requires_confirmation(mock_client):
 def test_migrate_with_confirmation(mock_client):
     mock_client._api.cluster.resources.get.return_value = MULTI_NODE_RESOURCES
     mock_client._api.nodes.get.return_value = MULTI_NODES
-    mock_client._api.nodes("pve").qemu(100).migrate.post.return_value = (
-        "UPID:pve:00001234:00000000:65F00000:qmmigrate:100:test@pam:"
-    )
+    mock_client._api.nodes("pve").qemu(
+        100
+    ).migrate.post.return_value = "UPID:pve:00001234:00000000:65F00000:qmmigrate:100:test@pam:"
 
     result = migrate_guest(mock_client, vmid=100, target_node="pve2", confirm=True)
 
@@ -106,9 +106,9 @@ def test_migrate_target_node_not_found(mock_client):
 def test_migrate_lxc_container(mock_client):
     mock_client._api.cluster.resources.get.return_value = MULTI_NODE_RESOURCES
     mock_client._api.nodes.get.return_value = MULTI_NODES
-    mock_client._api.nodes("pve").lxc(101).migrate.post.return_value = (
-        "UPID:pve:00001234:00000000:65F00000:vzmigrate:101:test@pam:"
-    )
+    mock_client._api.nodes("pve").lxc(
+        101
+    ).migrate.post.return_value = "UPID:pve:00001234:00000000:65F00000:vzmigrate:101:test@pam:"
 
     result = migrate_guest(mock_client, vmid=101, target_node="pve2", confirm=True)
 
