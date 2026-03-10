@@ -286,6 +286,12 @@ class ProxmoxClient:
         else:
             self.api.nodes(node).lxc(vmid).firewall.rules(pos).delete()
 
+    # --- Templates ---
+
+    def convert_to_template(self, node: str, vmid: int) -> None:
+        """Convert a VM to a template. The VM must be stopped."""
+        self.api.nodes(node).qemu(vmid).template.post()
+
     # --- Migration ---
 
     def migrate_guest(

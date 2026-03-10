@@ -22,6 +22,7 @@ from mcp_proxmox.tools import (
     resize,
     snapshots,
     storage,
+    templates,
 )
 
 mcp = FastMCP("mcp-proxmox")  # type: ignore[call-arg]
@@ -630,6 +631,65 @@ def migrate_guest(
         confirm: Must be true to execute. First call without confirm shows a warning.
     """
     return _to_text(migration.migrate_guest(_get_client(), vmid, target_node, online, confirm))
+
+
+# --- Template & Cloud-init Tools ---
+
+
+@mcp.tool()
+def list_templates() -> str:
+    """List all VM templates available in the cluster for cloning."""
+    return _to_text(templates.list_templates(_get_client()))
+
+
+@mcp.tool()
+def create_template(vmid: int, confirm: bool = False) -> str:
+    """Convert a stopped VM into a template. IRREVERSIBLE.
+
+    Once converted, the VM can no longer be started — it can only be cloned.
+
+    Args:
+        vmid: The numeric ID of the VM to convert.
+        confirm: Must be true to execute. First call without confirm shows a warning.
+    """
+    return _to_text(templates.create_template(_get_client(), vmid, confirm))
+
+
+@mcp.tool()
+def configure_cloud_init(
+    vmid: int,
+    user: str | None = None,
+    password: str | None = None,
+    ssh_keys: str | None = None,
+    ip_config: str | None = None,
+    nameserver: str | None = None,
+    searchdomain: str | None = None,
+) -> str:
+    """Configure cloud-init settings on a VM for automated provisioning.
+
+    At least one parameter must be provided. Changes take effect on next boot.
+
+    Args:
+        vmid: The numeric ID of the VM.
+        user: Default user name for cloud-init.
+        password: Password for the default user.
+        ssh_keys: SSH public keys (URL-encoded, newline-separated for multiple keys).
+        ip_config: IP configuration string (e.g. 'ip=dhcp' or 'ip=10.0.0.5/24,gw=10.0.0.1').
+        nameserver: DNS server IP(s), space-separated.
+        searchdomain: DNS search domain(s), space-separated.
+    """
+    return _to_text(
+        templates.configure_cloud_init(
+            _get_client(),
+            vmid=vmid,
+            user=user,
+            password=password,
+            ssh_keys=ssh_keys,
+            ip_config=ip_config,
+            nameserver=nameserver,
+            searchdomain=searchdomain,
+        )
+    )
 
 
 def main() -> None:

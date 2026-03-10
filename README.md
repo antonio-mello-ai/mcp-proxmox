@@ -50,6 +50,7 @@ PROXMOX_VERIFY_SSL=false            # Default: false
    - `VM.Monitor` — access QEMU monitor (for metrics)
    - `VM.Migrate` — migrate VMs/CTs between nodes
    - `Sys.Modify` — manage firewall rules
+   - `VM.Config.Cloudinit` — configure cloud-init parameters
 
 ## Integration
 
@@ -192,9 +193,17 @@ Add to Cursor Settings > MCP with the same configuration as above.
 |------|-------------|
 | `migrate_guest` | Live or offline migrate a VM/CT to another node (requires confirmation) |
 
+### Templates & Cloud-init
+
+| Tool | Description |
+|------|-------------|
+| `list_templates` | List all VM templates available for cloning |
+| `create_template` | Convert a stopped VM into a template (requires confirmation, irreversible) |
+| `configure_cloud_init` | Set user, password, SSH keys, IP config, and DNS on a VM |
+
 ### Safety
 
-Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`, `resize_guest`, `restore_backup`, `delete_firewall_rule`, `migrate_guest`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
+Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`, `resize_guest`, `restore_backup`, `delete_firewall_rule`, `migrate_guest`, `create_template`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
 
 ## Examples
 
@@ -224,6 +233,9 @@ Once connected, you can ask your AI assistant:
 - "Show me the firewall rules on VM 100"
 - "Allow TCP port 443 on container 101"
 - "Migrate VM 200 to node pve2"
+- "List all templates in the cluster"
+- "Convert VM 102 into a template"
+- "Set cloud-init on VM 100: user admin, IP dhcp, DNS 8.8.8.8"
 
 ## Development
 
