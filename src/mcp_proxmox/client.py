@@ -214,9 +214,7 @@ class ProxmoxClient:
 
     # --- Resize ---
 
-    def update_guest_config(
-        self, node: str, vmid: int, guest_type: str, **params: Any
-    ) -> None:
+    def update_guest_config(self, node: str, vmid: int, guest_type: str, **params: Any) -> None:
         """Update VM or container configuration (CPU, memory, etc.)."""
         if guest_type == "qemu":
             self.api.nodes(node).qemu(vmid).config.put(**params)
@@ -239,6 +237,70 @@ class ProxmoxClient:
     def get_task_status(self, node: str, upid: str) -> dict[str, Any]:
         """Get status of a specific task."""
         return cast(dict[str, Any], self.api.nodes(node).tasks(upid).status.get())
+
+    # --- Firewall ---
+
+    def get_cluster_firewall_rules(self) -> list[dict[str, Any]]:
+        """List cluster-level firewall rules."""
+        return cast(list[dict[str, Any]], self.api.cluster.firewall.rules.get())
+
+    def get_node_firewall_rules(self, node: str) -> list[dict[str, Any]]:
+        """List node-level firewall rules."""
+        return cast(list[dict[str, Any]], self.api.nodes(node).firewall.rules.get())
+
+    def get_guest_firewall_rules(
+        self, node: str, vmid: int, guest_type: str
+    ) -> list[dict[str, Any]]:
+        """List firewall rules for a VM or container."""
+        if guest_type == "qemu":
+            return cast(list[dict[str, Any]], self.api.nodes(node).qemu(vmid).firewall.rules.get())
+        return cast(list[dict[str, Any]], self.api.nodes(node).lxc(vmid).firewall.rules.get())
+
+    def add_cluster_firewall_rule(self, **params: Any) -> None:
+        """Add a cluster-level firewall rule."""
+        self.api.cluster.firewall.rules.post(**params)
+
+    def add_node_firewall_rule(self, node: str, **params: Any) -> None:
+        """Add a node-level firewall rule."""
+        self.api.nodes(node).firewall.rules.post(**params)
+
+    def add_guest_firewall_rule(self, node: str, vmid: int, guest_type: str, **params: Any) -> None:
+        """Add a firewall rule to a VM or container."""
+        if guest_type == "qemu":
+            self.api.nodes(node).qemu(vmid).firewall.rules.post(**params)
+        else:
+            self.api.nodes(node).lxc(vmid).firewall.rules.post(**params)
+
+    def delete_cluster_firewall_rule(self, pos: int) -> None:
+        """Delete a cluster-level firewall rule by position."""
+        self.api.cluster.firewall.rules(pos).delete()
+
+    def delete_node_firewall_rule(self, node: str, pos: int) -> None:
+        """Delete a node-level firewall rule by position."""
+        self.api.nodes(node).firewall.rules(pos).delete()
+
+    def delete_guest_firewall_rule(self, node: str, vmid: int, guest_type: str, pos: int) -> None:
+        """Delete a firewall rule from a VM or container by position."""
+        if guest_type == "qemu":
+            self.api.nodes(node).qemu(vmid).firewall.rules(pos).delete()
+        else:
+            self.api.nodes(node).lxc(vmid).firewall.rules(pos).delete()
+
+    # --- Migration ---
+
+    def migrate_guest(
+        self, node: str, vmid: int, guest_type: str, target: str, online: bool = True
+    ) -> str:
+        """Migrate a VM or container to another node. Returns the UPID."""
+        if guest_type == "qemu":
+            return cast(
+                str,
+                self.api.nodes(node).qemu(vmid).migrate.post(target=target, online=int(online)),
+            )
+        return cast(
+            str,
+            self.api.nodes(node).lxc(vmid).migrate.post(target=target, online=int(online)),
+        )
 
     def get_rrd_data(
         self, node: str, vmid: int, guest_type: str, timeframe: str = "hour"

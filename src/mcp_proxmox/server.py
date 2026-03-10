@@ -13,7 +13,9 @@ from mcp_proxmox.tools import (
     backup,
     discovery,
     execute,
+    firewall,
     lifecycle,
+    migration,
     monitoring,
     network,
     provisioning,
@@ -512,10 +514,122 @@ def resize_guest(
         confirm: Must be true to execute. First call without confirm shows a warning.
     """
     return _to_text(
-        resize.resize_guest(
-            _get_client(), vmid, cores, memory, disk_size, disk, confirm
+        resize.resize_guest(_get_client(), vmid, cores, memory, disk_size, disk, confirm)
+    )
+
+
+# --- Firewall Tools ---
+
+
+@mcp.tool()
+def list_firewall_rules(
+    vmid: int | None = None,
+    node: str | None = None,
+) -> str:
+    """List firewall rules. Can target a specific VM/CT, a node, or the cluster.
+
+    Args:
+        vmid: Optional. List rules for this VM/container.
+        node: Optional. List rules for this node. Ignored if vmid is provided.
+    If neither vmid nor node is provided, lists cluster-level rules.
+    """
+    return _to_text(firewall.list_firewall_rules(_get_client(), vmid, node))
+
+
+@mcp.tool()
+def add_firewall_rule(
+    action: str,
+    type_: str,
+    vmid: int | None = None,
+    node: str | None = None,
+    proto: str | None = None,
+    dport: str | None = None,
+    sport: str | None = None,
+    source: str | None = None,
+    dest: str | None = None,
+    iface: str | None = None,
+    enable: bool = True,
+    comment: str = "",
+    pos: int | None = None,
+) -> str:
+    """Add a firewall rule to a VM/CT, node, or cluster.
+
+    Args:
+        action: Rule action: 'ACCEPT', 'DROP', or 'REJECT'.
+        type_: Rule direction: 'in' (incoming) or 'out' (outgoing).
+        vmid: Optional. Add rule to this VM/container.
+        node: Optional. Add rule to this node. Ignored if vmid is provided.
+        proto: Optional. Protocol: 'tcp', 'udp', 'icmp', etc.
+        dport: Optional. Destination port or range (e.g. '80', '8000-9000', '80,443').
+        sport: Optional. Source port or range.
+        source: Optional. Source IP/CIDR (e.g. '192.168.1.0/24').
+        dest: Optional. Destination IP/CIDR.
+        iface: Optional. Network interface (e.g. 'net0').
+        enable: Enable rule immediately (default true).
+        comment: Optional description for the rule.
+        pos: Optional position in the rule chain (0 = first).
+    If neither vmid nor node is provided, adds a cluster-level rule.
+    """
+    return _to_text(
+        firewall.add_firewall_rule(
+            _get_client(),
+            action=action,
+            type_=type_,
+            vmid=vmid,
+            node=node,
+            proto=proto,
+            dport=dport,
+            sport=sport,
+            source=source,
+            dest=dest,
+            iface=iface,
+            enable=enable,
+            comment=comment,
+            pos=pos,
         )
     )
+
+
+@mcp.tool()
+def delete_firewall_rule(
+    pos: int,
+    vmid: int | None = None,
+    node: str | None = None,
+    confirm: bool = False,
+) -> str:
+    """Delete a firewall rule by its position number.
+
+    Use list_firewall_rules first to see rule positions.
+
+    Args:
+        pos: Position of the rule to delete (from list_firewall_rules output).
+        vmid: Optional. Delete from this VM/container's rules.
+        node: Optional. Delete from this node's rules. Ignored if vmid is provided.
+        confirm: Must be true to execute. First call without confirm shows a warning.
+    If neither vmid nor node is provided, deletes from cluster-level rules.
+    """
+    return _to_text(firewall.delete_firewall_rule(_get_client(), pos, vmid, node, confirm))
+
+
+# --- Migration Tools ---
+
+
+@mcp.tool()
+def migrate_guest(
+    vmid: int,
+    target_node: str,
+    online: bool = True,
+    confirm: bool = False,
+) -> str:
+    """Live migrate a VM or container to another node in the cluster.
+
+    Args:
+        vmid: The numeric ID of the VM or container to migrate.
+        target_node: Name of the destination node (e.g. 'pve2').
+        online: Live migration (true, default) or offline (false). Online keeps the guest running.
+        confirm: Must be true to execute. First call without confirm shows a warning.
+    """
+    return _to_text(migration.migrate_guest(_get_client(), vmid, target_node, online, confirm))
 
 
 def main() -> None:

@@ -48,6 +48,8 @@ PROXMOX_VERIFY_SSL=false            # Default: false
    - `VM.Config.CPU` — change CPU allocation
    - `VM.Config.Memory` — change memory allocation
    - `VM.Monitor` — access QEMU monitor (for metrics)
+   - `VM.Migrate` — migrate VMs/CTs between nodes
+   - `Sys.Modify` — manage firewall rules
 
 ## Integration
 
@@ -176,9 +178,23 @@ Add to Cursor Settings > MCP with the same configuration as above.
 | `get_guest_metrics` | CPU, memory, network, disk I/O over time |
 | `list_tasks` | Recent tasks on a node (backups, migrations, etc.) |
 
+### Firewall
+
+| Tool | Description |
+|------|-------------|
+| `list_firewall_rules` | List firewall rules for a VM/CT, node, or the cluster |
+| `add_firewall_rule` | Add a firewall rule (action, direction, protocol, port, source/dest) |
+| `delete_firewall_rule` | Delete a firewall rule by position (requires confirmation) |
+
+### Migration
+
+| Tool | Description |
+|------|-------------|
+| `migrate_guest` | Live or offline migrate a VM/CT to another node (requires confirmation) |
+
 ### Safety
 
-Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`, `resize_guest`, `restore_backup`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
+Destructive operations (`stop_guest`, `reboot_guest`, `rollback_snapshot`, `delete_snapshot`, `delete_guest`, `resize_guest`, `restore_backup`, `delete_firewall_rule`, `migrate_guest`) require explicit `confirm=true`. The first call returns a warning describing the impact; only a second call with confirmation executes the action.
 
 ## Examples
 
@@ -205,6 +221,9 @@ Once connected, you can ask your AI assistant:
 - "Show me the network bridges on node pve"
 - "Give VM 100 more CPU — bump it to 8 cores"
 - "Add 50GB of disk to container 101"
+- "Show me the firewall rules on VM 100"
+- "Allow TCP port 443 on container 101"
+- "Migrate VM 200 to node pve2"
 
 ## Development
 

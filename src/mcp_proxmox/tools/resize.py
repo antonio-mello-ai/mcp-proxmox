@@ -43,11 +43,11 @@ def resize_guest(
         return {"error": "Memory must be at least 128 MB"}
 
     if disk_size is not None and not re.match(r"^\+?\d+[GMTK]$", disk_size):
-            return {
-                "error": f"Invalid disk_size '{disk_size}'. "
-                "Use format like '+10G' (relative) or '50G' (absolute). "
-                "Supported units: K, M, G, T."
-            }
+        return {
+            "error": f"Invalid disk_size '{disk_size}'. "
+            "Use format like '+10G' (relative) or '50G' (absolute). "
+            "Supported units: K, M, G, T."
+        }
 
     # Build change description
     changes: list[str] = []

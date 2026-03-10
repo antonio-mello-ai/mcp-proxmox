@@ -123,6 +123,4 @@ def test_resize_lxc_config(mock_client):
     result = resize_guest(mock_client, 101, cores=2, memory=1024, confirm=True)
 
     assert result["success"] is True
-    mock_client._api.nodes("pve").lxc(101).config.put.assert_called_once_with(
-        cores=2, memory=1024
-    )
+    mock_client._api.nodes("pve").lxc(101).config.put.assert_called_once_with(cores=2, memory=1024)
