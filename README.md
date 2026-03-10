@@ -2,6 +2,10 @@
 
 <!-- mcp-name: io.github.antonio-mello-ai/mcp-proxmox -->
 
+<a href="https://glama.ai/mcp/servers/antonio-mello-ai/mcp-proxmox">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/antonio-mello-ai/mcp-proxmox/badge" alt="mcp-proxmox MCP server" />
+</a>
+
 MCP server for managing Proxmox VE clusters through AI assistants like Claude, Cursor, and Cline.
 
 Provision, manage, and monitor your entire Proxmox infrastructure through natural language. Create VMs and containers, manage snapshots, browse storage, and more.
