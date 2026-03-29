@@ -10,6 +10,10 @@ MCP server for managing Proxmox VE clusters through AI assistants like Claude, C
 
 Provision, manage, and monitor your entire Proxmox infrastructure through natural language. Create VMs and containers, manage snapshots, browse storage, and more.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/antonio-mello-ai-mcp-proxmox).
+
 ## Quick Start
 
 ```bash
