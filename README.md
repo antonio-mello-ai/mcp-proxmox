@@ -243,6 +243,24 @@ Once connected, you can ask your AI assistant:
 - "Convert VM 102 into a template"
 - "Set cloud-init on VM 100: user admin, IP dhcp, DNS 8.8.8.8"
 
+## Troubleshooting
+
+### `Missing required environment variables`
+
+This error means one or more required connection settings are not available to the server process. Copy `.env.example` to `.env`, then set `PROXMOX_HOST`, `PROXMOX_TOKEN_ID`, and `PROXMOX_TOKEN_SECRET`. If you configure an MCP client directly, make sure the same variables are present in that client's `env` block.
+
+### `403 Permission check failed`
+
+A 403 usually means the API token is valid but does not have enough Proxmox privileges for the requested operation. Revisit **Creating a Proxmox API Token** and either uncheck "Privilege Separation" for full access or assign the specific privileges listed there, such as `VM.Audit`, `VM.PowerMgmt`, `VM.Snapshot`, or storage permissions for datastore operations.
+
+### `exec_command` fails for guest-agent or LXC reasons
+
+`exec_command` only works for QEMU VMs with `qemu-guest-agent` installed and running inside the guest. If the tool reports that the QEMU guest agent is not responding, start or install the agent in the VM and retry. LXC containers are not supported by this Proxmox API path, so use another container access method instead.
+
+### Self-signed certificate or connection errors
+
+Proxmox commonly runs on port `8006`, so check that `PROXMOX_HOST` and `PROXMOX_PORT` point to the same endpoint you use for the Proxmox web UI. For homelab clusters with self-signed certificates, leave `PROXMOX_VERIFY_SSL=false` or set it explicitly. Use `PROXMOX_VERIFY_SSL=true` only when the Proxmox certificate chains to a CA trusted by your runtime.
+
 ## Development
 
 ```bash
