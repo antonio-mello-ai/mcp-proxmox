@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import Any, cast
 
 from proxmoxer import ProxmoxAPI  # type: ignore[import-untyped]
@@ -194,9 +195,13 @@ class ProxmoxClient:
 
     def exec_qemu_agent(self, node: str, vmid: int, command: str) -> dict[str, Any]:
         """Execute a command via QEMU guest agent. Returns the PID."""
+        # The Proxmox API expects `command` as an array (program + each argument
+        # as a separate element), not a single string. Passing a raw string with
+        # spaces breaks the request (manifests as a broken-pipe/TLS error).
+        args = shlex.split(command)
         return cast(
             dict[str, Any],
-            self.api.nodes(node).qemu(vmid).agent.exec.post(command=command),
+            self.api.nodes(node).qemu(vmid).agent.exec.post(command=args),
         )
 
     def exec_qemu_agent_status(self, node: str, vmid: int, pid: int) -> dict[str, Any]:
