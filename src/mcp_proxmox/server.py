@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from mcp_proxmox.client import ProxmoxClient
 from mcp_proxmox.config import ProxmoxConfig
