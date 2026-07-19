@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -28,14 +30,17 @@ from mcp_proxmox.tools import (
 mcp = FastMCP("mcp-proxmox")  # type: ignore[call-arg]
 
 _client: ProxmoxClient | None = None
+_client_lock = threading.Lock()
 
 
 def _get_client() -> ProxmoxClient:
-    """Get or create the Proxmox client singleton."""
+    """Get or create the Proxmox client singleton (threadsafe)."""
     global _client
     if _client is None:
-        config = ProxmoxConfig.from_env()
-        _client = ProxmoxClient(config)
+        with _client_lock:
+            if _client is None:
+                config = ProxmoxConfig.from_env()
+                _client = ProxmoxClient(config)
     return _client
 
 
@@ -44,183 +49,88 @@ def _to_text(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
+async def _run_blocking(fn, *args, **kwargs):
+    """Run a blocking (synchronous) call in a thread to keep the event loop free."""
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
 # --- Discovery Tools ---
 
 
 @mcp.tool()
-def list_nodes() -> str:
+async def list_nodes() -> str:
     """List all nodes in the Proxmox cluster with status, CPU, memory, and uptime."""
-    return _to_text(discovery.list_nodes(_get_client()))
-
-
+    return _to_text(await _run_blocking(discovery.list_nodes(_get_client())))
 @mcp.tool()
-def get_node_status(node: str) -> str:
-    """Get detailed status for a specific node including CPU model, memory, disk, and versions.
-
-    Args:
-        node: Name of the Proxmox node (e.g. 'pve', 'node1').
-    """
-    return _to_text(discovery.get_node_status(_get_client(), node))
-
-
+async def get_node_status(node: str) -> str:
+    """Get detailed status for a specific node including CPU model, memory, disk, and versions."""
+    return _to_text(await _run_blocking(discovery.get_node_status(_get_client(), node)))
 @mcp.tool()
-def list_vms(node: str | None = None, status: str | None = None) -> str:
-    """List all QEMU virtual machines across the cluster.
-
-    Args:
-        node: Optional. Filter by node name.
-        status: Optional. Filter by status ('running', 'stopped').
-    """
-    return _to_text(discovery.list_vms(_get_client(), node, status))
-
-
+async def list_vms(node: str | None = None, status: str | None = None) -> str:
+    """List all QEMU virtual machines across the cluster."""
+    return _to_text(await _run_blocking(discovery.list_vms(_get_client(), node, status)))
 @mcp.tool()
-def list_containers(node: str | None = None, status: str | None = None) -> str:
-    """List all LXC containers across the cluster.
-
-    Args:
-        node: Optional. Filter by node name.
-        status: Optional. Filter by status ('running', 'stopped').
-    """
-    return _to_text(discovery.list_containers(_get_client(), node, status))
-
-
+async def list_containers(node: str | None = None, status: str | None = None) -> str:
+    """List all LXC containers across the cluster."""
+    return _to_text(await _run_blocking(discovery.list_containers(_get_client(), node, status)))
 @mcp.tool()
-def get_guest_status(vmid: int) -> str:
-    """Get detailed status of a VM or container by VMID. Auto-detects type and node.
-
-    Args:
-        vmid: The numeric ID of the VM or container (e.g. 100, 200).
-    """
-    return _to_text(discovery.get_guest_status(_get_client(), vmid))
-
-
+async def get_guest_status(vmid: int) -> str:
+    """Get detailed status of a VM or container by VMID. Auto-detects type and node."""
+    return _to_text(await _run_blocking(discovery.get_guest_status(_get_client(), vmid)))
 # --- Lifecycle Tools ---
 
 
 @mcp.tool()
-def start_guest(vmid: int) -> str:
-    """Start a stopped VM or container.
-
-    Args:
-        vmid: The numeric ID of the VM or container to start.
-    """
-    return _to_text(lifecycle.start_guest(_get_client(), vmid))
-
-
+async def start_guest(vmid: int) -> str:
+    """Start a stopped VM or container."""
+    return _to_text(await _run_blocking(lifecycle.start_guest(_get_client(), vmid)))
 @mcp.tool()
-def stop_guest(vmid: int, confirm: bool = False) -> str:
-    """Force-stop a running VM or container. WARNING: May cause data loss.
-
-    Args:
-        vmid: The numeric ID of the VM or container to stop.
-        confirm: Must be true to execute. First call without confirm shows a warning.
-    """
-    return _to_text(lifecycle.stop_guest(_get_client(), vmid, confirm))
-
-
+async def stop_guest(vmid: int, confirm: bool = False) -> str:
+    """Force-stop a running VM or container. WARNING: May cause data loss."""
+    return _to_text(await _run_blocking(lifecycle.stop_guest(_get_client(), vmid, confirm)))
 @mcp.tool()
-def shutdown_guest(vmid: int) -> str:
-    """Gracefully shut down a VM or container via ACPI signal (VMs) or init (containers).
-
-    Args:
-        vmid: The numeric ID of the VM or container to shut down.
-    """
-    return _to_text(lifecycle.shutdown_guest(_get_client(), vmid))
-
-
+async def shutdown_guest(vmid: int) -> str:
+    """Gracefully shut down a VM or container via ACPI signal (VMs) or init (containers)."""
+    return _to_text(await _run_blocking(lifecycle.shutdown_guest(_get_client(), vmid)))
 @mcp.tool()
-def reboot_guest(vmid: int, confirm: bool = False) -> str:
-    """Reboot a running VM or container.
-
-    Args:
-        vmid: The numeric ID of the VM or container to reboot.
-        confirm: Must be true to execute. First call without confirm shows a warning.
-    """
-    return _to_text(lifecycle.reboot_guest(_get_client(), vmid, confirm))
-
-
+async def reboot_guest(vmid: int, confirm: bool = False) -> str:
+    """Reboot a running VM or container."""
+    return _to_text(await _run_blocking(lifecycle.reboot_guest(_get_client(), vmid, confirm)))
 # --- Snapshot Tools ---
 
 
 @mcp.tool()
-def list_snapshots(vmid: int) -> str:
-    """List all snapshots for a VM or container.
-
-    Args:
-        vmid: The numeric ID of the VM or container.
-    """
-    return _to_text(snapshots.list_snapshots(_get_client(), vmid))
-
-
+async def list_snapshots(vmid: int) -> str:
+    """List all snapshots for a VM or container."""
+    return _to_text(await _run_blocking(snapshots.list_snapshots(_get_client(), vmid)))
 @mcp.tool()
-def create_snapshot(vmid: int, name: str, description: str = "") -> str:
-    """Create a new snapshot for a VM or container.
-
-    Args:
-        vmid: The numeric ID of the VM or container.
-        name: Snapshot name (alphanumeric, hyphens, underscores).
-        description: Optional description for the snapshot.
-    """
-    return _to_text(snapshots.create_snapshot(_get_client(), vmid, name, description))
-
-
+async def create_snapshot(vmid: int, name: str, description: str = "") -> str:
+    """Create a new snapshot for a VM or container."""
+    return _to_text(await _run_blocking(snapshots.create_snapshot(_get_client(), vmid, name, description)))
 @mcp.tool()
-def rollback_snapshot(vmid: int, name: str, confirm: bool = False) -> str:
-    """Rollback a VM or container to a previous snapshot.
-
-    WARNING: All changes since the snapshot will be LOST.
-
-    Args:
-        vmid: The numeric ID of the VM or container.
-        name: Name of the snapshot to rollback to.
-        confirm: Must be true to execute. First call without confirm shows a warning.
-    """
-    return _to_text(snapshots.rollback_snapshot(_get_client(), vmid, name, confirm))
-
-
+async def rollback_snapshot(vmid: int, name: str, confirm: bool = False) -> str:
+    """Rollback a VM or container to a previous snapshot."""
+    return _to_text(await _run_blocking(snapshots.rollback_snapshot(_get_client(), vmid, name, confirm)))
 @mcp.tool()
-def delete_snapshot(vmid: int, name: str, confirm: bool = False) -> str:
-    """Delete a snapshot from a VM or container.
-
-    Args:
-        vmid: The numeric ID of the VM or container.
-        name: Name of the snapshot to delete.
-        confirm: Must be true to execute. First call without confirm shows a warning.
-    """
-    return _to_text(snapshots.delete_snapshot(_get_client(), vmid, name, confirm))
-
-
+async def delete_snapshot(vmid: int, name: str, confirm: bool = False) -> str:
+    """Delete a snapshot from a VM or container."""
+    return _to_text(await _run_blocking(snapshots.delete_snapshot(_get_client(), vmid, name, confirm)))
 # --- Storage Tools ---
 
 
 @mcp.tool()
-def list_storages(node: str | None = None) -> str:
-    """List storage pools across the cluster with capacity and usage info.
-
-    Args:
-        node: Optional. Filter by node name.
-    """
-    return _to_text(storage.list_storages(_get_client(), node))
-
-
+async def list_storages(node: str | None = None) -> str:
+    """List storage pools across the cluster with capacity and usage info."""
+    return _to_text(await _run_blocking(storage.list_storages(_get_client(), node)))
 @mcp.tool()
-def list_storage_content(node: str, storage_name: str, content_type: str | None = None) -> str:
-    """List content of a storage pool (ISOs, templates, backups, disk images).
-
-    Args:
-        node: Name of the Proxmox node.
-        storage_name: Name of the storage pool (e.g. 'local', 'local-lvm').
-        content_type: Optional. Filter by type: 'iso', 'vztmpl', 'backup', 'images', 'rootdir'.
-    """
-    return _to_text(storage.list_storage_content(_get_client(), node, storage_name, content_type))
-
-
+async def list_storage_content(node: str, storage_name: str, content_type: str | None = None) -> str:
+    """List content of a storage pool (ISOs, templates, backups, disk images)."""
+    return _to_text(await _run_blocking(storage.list_storage_content(_get_client(), node, storage_name, content_type)))
 # --- Provisioning Tools ---
 
 
 @mcp.tool()
-def create_vm(
+async def create_vm(
     node: str,
     name: str,
     cores: int = 1,
@@ -251,7 +161,7 @@ def create_vm(
         vmid: Optional specific VMID. Auto-assigned if not provided.
     """
     return _to_text(
-        provisioning.create_vm(
+        await _run_blocking(provisioning.create_vm,
             _get_client(),
             node=node,
             name=name,
@@ -269,7 +179,7 @@ def create_vm(
 
 
 @mcp.tool()
-def create_container(
+async def create_container(
     node: str,
     name: str,
     template: str,
@@ -301,7 +211,7 @@ def create_container(
         vmid: Optional specific VMID. Auto-assigned if not provided.
     """
     return _to_text(
-        provisioning.create_container(
+        await _run_blocking(provisioning.create_container,
             _get_client(),
             node=node,
             name=name,
@@ -320,7 +230,7 @@ def create_container(
 
 
 @mcp.tool()
-def clone_guest(
+async def clone_guest(
     vmid: int,
     new_name: str | None = None,
     target_node: str | None = None,
@@ -341,7 +251,7 @@ def clone_guest(
         new_vmid: Optional VMID for the clone. Auto-assigned if not provided.
     """
     return _to_text(
-        provisioning.clone_guest(
+        await _run_blocking(provisioning.clone_guest,
             _get_client(),
             vmid=vmid,
             new_name=new_name,
@@ -354,23 +264,14 @@ def clone_guest(
 
 
 @mcp.tool()
-def delete_guest(vmid: int, confirm: bool = False) -> str:
-    """Permanently delete a VM or container. IRREVERSIBLE.
-
-    The guest must be stopped before deletion. All disk images will be destroyed.
-
-    Args:
-        vmid: The numeric ID of the VM or container to delete.
-        confirm: Must be true to execute. First call without confirm shows a warning.
-    """
-    return _to_text(provisioning.delete_guest(_get_client(), vmid, confirm))
-
-
+async def delete_guest(vmid: int, confirm: bool = False) -> str:
+    """Permanently delete a VM or container. IRREVERSIBLE."""
+    return _to_text(await _run_blocking(provisioning.delete_guest(_get_client(), vmid, confirm)))
 # --- Backup Tools ---
 
 
 @mcp.tool()
-def list_backups(
+async def list_backups(
     node: str | None = None,
     storage_name: str | None = None,
     vmid: int | None = None,
@@ -382,11 +283,11 @@ def list_backups(
         storage_name: Optional. Filter by storage name.
         vmid: Optional. Filter by VMID to see backups of a specific guest.
     """
-    return _to_text(backup.list_backups(_get_client(), node, storage_name, vmid))
+    return _to_text(await _run_blocking(backup.list_backups, _get_client(), node, storage_name, vmid))
 
 
 @mcp.tool()
-def create_backup(
+async def create_backup(
     vmid: int,
     storage_name: str = "local",
     mode: str = "snapshot",
@@ -402,11 +303,11 @@ def create_backup(
         compress: Compression: 'zstd' (default), 'lzo', 'gzip', or '0' (none).
         notes: Optional notes/description for the backup.
     """
-    return _to_text(backup.create_backup(_get_client(), vmid, storage_name, mode, compress, notes))
+    return _to_text(await _run_blocking(backup.create_backup, _get_client(), vmid, storage_name, mode, compress, notes))
 
 
 @mcp.tool()
-def restore_backup(
+async def restore_backup(
     volid: str,
     node: str,
     vmid: int | None = None,
@@ -426,7 +327,7 @@ def restore_backup(
         confirm: Must be true to execute. First call without confirm shows a warning.
     """
     return _to_text(
-        backup.restore_backup(_get_client(), volid, node, vmid, storage_pool, guest_type, confirm)
+        await _run_blocking(backup.restore_backup, _get_client(), volid, node, vmid, storage_pool, guest_type, confirm)
     )
 
 
@@ -434,64 +335,32 @@ def restore_backup(
 
 
 @mcp.tool()
-def exec_command(vmid: int, command: str, timeout: int = 30) -> str:
-    """Execute a command inside a QEMU VM via the guest agent.
-
-    Requires qemu-guest-agent to be installed and running inside the VM.
-    Not supported for LXC containers.
-
-    Args:
-        vmid: The numeric ID of the VM.
-        command: The command to execute (e.g. 'hostname', 'df -h', 'systemctl status nginx').
-        timeout: Max seconds to wait for command completion (default 30, max 300).
-    """
-    return _to_text(execute.exec_command(_get_client(), vmid, command, timeout))
-
-
+async def exec_command(vmid: int, command: str, timeout: int = 30) -> str:
+    """Execute a command inside a QEMU VM via the guest agent."""
+    return _to_text(await _run_blocking(execute.exec_command(_get_client(), vmid, command, timeout)))
 # --- Monitoring Tools ---
 
 
 @mcp.tool()
-def get_guest_metrics(vmid: int, timeframe: str = "hour") -> str:
-    """Get resource usage metrics (CPU, memory, network, disk I/O) for a VM or container.
-
-    Args:
-        vmid: The numeric ID of the VM or container.
-        timeframe: Time range for metrics. Options: 'hour', 'day', 'week', 'month', 'year'.
-    """
-    return _to_text(monitoring.get_guest_metrics(_get_client(), vmid, timeframe))
-
-
+async def get_guest_metrics(vmid: int, timeframe: str = "hour") -> str:
+    """Get resource usage metrics (CPU, memory, network, disk I/O) for a VM or container."""
+    return _to_text(await _run_blocking(monitoring.get_guest_metrics(_get_client(), vmid, timeframe)))
 @mcp.tool()
-def list_tasks(node: str, limit: int = 20, status: str | None = None) -> str:
-    """List recent tasks on a Proxmox node (backups, migrations, snapshots, etc.).
-
-    Args:
-        node: Name of the Proxmox node.
-        limit: Maximum number of tasks to return (default 20, max 100).
-        status: Optional. Filter by task status ('ok', 'error', 'running').
-    """
-    return _to_text(monitoring.list_tasks(_get_client(), node, limit, status))
-
-
+async def list_tasks(node: str, limit: int = 20, status: str | None = None) -> str:
+    """List recent tasks on a Proxmox node (backups, migrations, snapshots, etc.)."""
+    return _to_text(await _run_blocking(monitoring.list_tasks(_get_client(), node, limit, status)))
 # --- Network Tools ---
 
 
 @mcp.tool()
-def list_networks(node: str) -> str:
-    """List network interfaces, bridges, and bonds on a Proxmox node.
-
-    Args:
-        node: Name of the Proxmox node (e.g. 'pve').
-    """
-    return _to_text(network.list_networks(_get_client(), node))
-
-
+async def list_networks(node: str) -> str:
+    """List network interfaces, bridges, and bonds on a Proxmox node."""
+    return _to_text(await _run_blocking(network.list_networks(_get_client(), node)))
 # --- Resize Tools ---
 
 
 @mcp.tool()
-def resize_guest(
+async def resize_guest(
     vmid: int,
     cores: int | None = None,
     memory: int | None = None,
@@ -515,7 +384,7 @@ def resize_guest(
         confirm: Must be true to execute. First call without confirm shows a warning.
     """
     return _to_text(
-        resize.resize_guest(_get_client(), vmid, cores, memory, disk_size, disk, confirm)
+        await _run_blocking(resize.resize_guest, _get_client(), vmid, cores, memory, disk_size, disk, confirm)
     )
 
 
@@ -523,7 +392,7 @@ def resize_guest(
 
 
 @mcp.tool()
-def list_firewall_rules(
+async def list_firewall_rules(
     vmid: int | None = None,
     node: str | None = None,
 ) -> str:
@@ -534,11 +403,11 @@ def list_firewall_rules(
         node: Optional. List rules for this node. Ignored if vmid is provided.
     If neither vmid nor node is provided, lists cluster-level rules.
     """
-    return _to_text(firewall.list_firewall_rules(_get_client(), vmid, node))
+    return _to_text(await _run_blocking(firewall.list_firewall_rules, _get_client(), vmid, node))
 
 
 @mcp.tool()
-def add_firewall_rule(
+async def add_firewall_rule(
     action: str,
     type_: str,
     vmid: int | None = None,
@@ -572,7 +441,7 @@ def add_firewall_rule(
     If neither vmid nor node is provided, adds a cluster-level rule.
     """
     return _to_text(
-        firewall.add_firewall_rule(
+        await _run_blocking(firewall.add_firewall_rule,
             _get_client(),
             action=action,
             type_=type_,
@@ -592,7 +461,7 @@ def add_firewall_rule(
 
 
 @mcp.tool()
-def delete_firewall_rule(
+async def delete_firewall_rule(
     pos: int,
     vmid: int | None = None,
     node: str | None = None,
@@ -609,14 +478,14 @@ def delete_firewall_rule(
         confirm: Must be true to execute. First call without confirm shows a warning.
     If neither vmid nor node is provided, deletes from cluster-level rules.
     """
-    return _to_text(firewall.delete_firewall_rule(_get_client(), pos, vmid, node, confirm))
+    return _to_text(await _run_blocking(firewall.delete_firewall_rule, _get_client(), pos, vmid, node, confirm))
 
 
 # --- Migration Tools ---
 
 
 @mcp.tool()
-def migrate_guest(
+async def migrate_guest(
     vmid: int,
     target_node: str,
     online: bool = True,
@@ -630,33 +499,22 @@ def migrate_guest(
         online: Live migration (true, default) or offline (false). Online keeps the guest running.
         confirm: Must be true to execute. First call without confirm shows a warning.
     """
-    return _to_text(migration.migrate_guest(_get_client(), vmid, target_node, online, confirm))
+    return _to_text(await _run_blocking(migration.migrate_guest, _get_client(), vmid, target_node, online, confirm))
 
 
 # --- Template & Cloud-init Tools ---
 
 
 @mcp.tool()
-def list_templates() -> str:
+async def list_templates() -> str:
     """List all VM templates available in the cluster for cloning."""
-    return _to_text(templates.list_templates(_get_client()))
-
-
+    return _to_text(await _run_blocking(templates.list_templates(_get_client())))
 @mcp.tool()
-def create_template(vmid: int, confirm: bool = False) -> str:
-    """Convert a stopped VM into a template. IRREVERSIBLE.
-
-    Once converted, the VM can no longer be started — it can only be cloned.
-
-    Args:
-        vmid: The numeric ID of the VM to convert.
-        confirm: Must be true to execute. First call without confirm shows a warning.
-    """
-    return _to_text(templates.create_template(_get_client(), vmid, confirm))
-
-
+async def create_template(vmid: int, confirm: bool = False) -> str:
+    """Convert a stopped VM into a template. IRREVERSIBLE."""
+    return _to_text(await _run_blocking(templates.create_template(_get_client(), vmid, confirm)))
 @mcp.tool()
-def configure_cloud_init(
+async def configure_cloud_init(
     vmid: int,
     user: str | None = None,
     password: str | None = None,
@@ -679,7 +537,7 @@ def configure_cloud_init(
         searchdomain: DNS search domain(s), space-separated.
     """
     return _to_text(
-        templates.configure_cloud_init(
+        await _run_blocking(templates.configure_cloud_init,
             _get_client(),
             vmid=vmid,
             user=user,
