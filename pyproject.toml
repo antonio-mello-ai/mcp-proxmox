@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-proxmox"
-version = "1.2.1"
+version = "1.2.2"
 description = "MCP server for managing Proxmox VE clusters through AI assistants"
 readme = "README.md"
 license = "MIT"
@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "mcp>=1.26.0",
+    "mcp>=1.26.0,<2",
     "proxmoxer>=2.1.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
