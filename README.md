@@ -257,6 +257,10 @@ A 403 usually means the API token is valid but does not have enough Proxmox priv
 
 `exec_command` only works for QEMU VMs with `qemu-guest-agent` installed and running inside the guest. If the tool reports that the QEMU guest agent is not responding, start or install the agent in the VM and retry. LXC containers are not supported by this Proxmox API path, so use another container access method instead.
 
+### `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`
+
+The MCP Python SDK 2.0 removed the `mcp.server.fastmcp` module that mcp-proxmox 1.2.1 and earlier import. Fresh installs (`uvx mcp-proxmox`, `uv tool install`, `pip install`) resolved `mcp` 2.x and failed on startup — in Claude Desktop this only shows up as "Server disconnected". Upgrade to mcp-proxmox 1.2.2 or later, which pins `mcp<2`. If you must stay on an older mcp-proxmox, constrain the SDK yourself: `uvx --with "mcp<2" mcp-proxmox`.
+
 ### Self-signed certificate or connection errors
 
 Proxmox commonly runs on port `8006`, so check that `PROXMOX_HOST` and `PROXMOX_PORT` point to the same endpoint you use for the Proxmox web UI. For homelab clusters with self-signed certificates, leave `PROXMOX_VERIFY_SSL=false` or set it explicitly. Use `PROXMOX_VERIFY_SSL=true` only when the Proxmox certificate chains to a CA trusted by your runtime.

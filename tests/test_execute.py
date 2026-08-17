@@ -114,3 +114,23 @@ def test_exec_command_timeout(mock_client):
 
     assert result["status"] == "running"
     assert result["pid"] == 44
+
+
+def test_exec_command_sends_arguments_as_array(mock_client):
+    """The /agent/exec endpoint expects `command` as an array (program + args)."""
+    mock_client._api.cluster.resources.get.return_value = SAMPLE_CLUSTER_RESOURCES
+    mock_client._api.nodes("pve").qemu(100).agent.exec.post.return_value = {"pid": 44}
+    mock_client._api.nodes("pve").qemu(100).agent("exec-status").get.return_value = {
+        "exited": 1,
+        "exitcode": 0,
+        "out-data": "active\n",
+        "err-data": "",
+    }
+
+    with patch("mcp_proxmox.tools.execute.time.sleep"):
+        result = exec_command(mock_client, 100, "systemctl is-active 'my service'")
+
+    assert result["success"] is True
+    mock_client._api.nodes("pve").qemu(100).agent.exec.post.assert_called_once_with(
+        command=["systemctl", "is-active", "my service"]
+    )

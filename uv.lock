@@ -492,7 +492,7 @@ wheels = [
 
 [[package]]
 name = "mcp-proxmox"
-version = "0.4.0"
+version = "1.2.2"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },
@@ -512,7 +512,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp", specifier = ">=1.26.0" },
+    { name = "mcp", specifier = ">=1.26.0,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "proxmoxer", specifier = ">=2.1.0" },

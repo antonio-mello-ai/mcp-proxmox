@@ -14,6 +14,7 @@
 - [ ] `move_disk` — move disk between storages
 
 ## Future Ideas
+- Migrate to the MCP Python SDK 2.x API (`mcp.server.fastmcp` was removed in `mcp` 2.0; 1.2.2 pins `mcp<2` as the interim fix)
 - ACL/permissions management (list_permissions, add_permission)
 - Cluster status (nodes, quorum, corosync health)
 - SPICE/VNC console URL generation
