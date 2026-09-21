@@ -6,11 +6,13 @@ import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.utilities.types import Image
 
 from mcp_proxmox.client import ProxmoxClient
 from mcp_proxmox.config import ProxmoxConfig
 from mcp_proxmox.tools import (
     backup,
+    console,
     discovery,
     execute,
     firewall,
@@ -446,6 +448,72 @@ def exec_command(vmid: int, command: str, timeout: int = 30) -> str:
         timeout: Max seconds to wait for command completion (default 30, max 300).
     """
     return _to_text(execute.exec_command(_get_client(), vmid, command, timeout))
+
+
+# --- Console Interaction Tools (Screenshot & Keyboard Input) ---
+
+
+@mcp.tool()
+def vm_screenshot(vmid: int) -> Image:
+    """Capture a PNG screenshot of a QEMU VM's display.
+
+    The VM must be running. Returns the screenshot as a PNG image. Use this
+    to see the current state of the VM console (login prompt, GUI, boot
+    messages, installer screens, etc.).
+
+    Args:
+        vmid: The numeric ID of the QEMU VM.
+    """
+    return console.vm_screenshot(_get_client(), vmid)
+
+
+@mcp.tool()
+def vm_send_key(vmid: int, key: str, confirm: bool = False) -> str:
+    """Send a key or key combination to a QEMU VM's console.
+
+    The VM must be running. Key names are human-readable and auto-converted
+    to QEMU Monitor key codes. Use vm_screenshot first to see the console state.
+
+    Common keys and combos:
+        - 'enter' — Enter key
+        - 'esc' — Escape key
+        - 'tab' — Tab key
+        - 'space' — Space bar
+        - 'backspace' — Backspace
+        - 'up', 'down', 'left', 'right' — Arrow keys
+        - 'f1'-'f12' — Function keys
+        - 'ctrl-alt-delete' — Ctrl+Alt+Del (reboot)
+        - 'ctrl-c' — Ctrl+C
+        - 'win-r' — Win+R (opens Run dialog on Windows)
+        - 'a'-'z', '0'-'9' — Single character keys
+
+    Args:
+        vmid: The numeric ID of the QEMU VM.
+        key: Key name or hyphen-separated combo (e.g. 'enter', 'ctrl-alt-delete', 'win-r').
+        confirm: Must be true to send the key to the VM console.
+    """
+    return _to_text(console.vm_send_key(_get_client(), vmid, key, confirm=confirm))
+
+
+@mcp.tool()
+def vm_send_text(vmid: int, text: str, delay: float = 0.05, confirm: bool = False) -> str:
+    """Type a text string into a QEMU VM's console, character by character.
+
+    Each character is sent as an individual keypress. Use this to type
+    login credentials, commands, or other text into the VM console.
+    Combine with vm_screenshot to verify the result.
+
+    Supports printable ASCII characters. Newlines ('\n') are sent as Enter.
+    Note: characters requiring Shift (uppercase, symbols like '!', '@') are
+    sent with shift automatically.
+
+    Args:
+        vmid: The numeric ID of the QEMU VM.
+        text: Text string to type into the VM console (e.g. 'administrator\nadmin\n').
+        delay: Delay between keypresses in seconds (default 0.05).
+        confirm: Must be true to type the text into the VM console.
+    """
+    return _to_text(console.vm_send_text(_get_client(), vmid, text, delay, confirm=confirm))
 
 
 # --- Monitoring Tools ---

@@ -4,10 +4,92 @@ from __future__ import annotations
 
 import shlex
 from typing import Any, cast
+from urllib.parse import quote
 
 from proxmoxer import ProxmoxAPI  # type: ignore[import-untyped]
 
 from mcp_proxmox.config import ProxmoxConfig
+
+# --- QEMU sendkey key mapping ---
+# Maps human-readable key names to QEMU Monitor key codes.
+# Reference: https://qemu-project.gitlab.io/qemu/system/keys.html
+_QEMU_KEY_MAP: dict[str, str] = {
+    # Modifiers
+    "ctrl": "ctrl",
+    "alt": "alt",
+    "shift": "shift",
+    "win": "meta_l",
+    "super": "meta_l",
+    "meta": "meta_l",
+    "meta_l": "meta_l",
+    "meta_r": "meta_r",
+    # Special keys
+    "enter": "ret",
+    "return": "ret",
+    "ret": "ret",
+    "esc": "esc",
+    "escape": "esc",
+    "tab": "tab",
+    "backspace": "backspace",
+    "space": "spc",
+    "spc": "spc",
+    "delete": "delete",
+    "del": "delete",
+    "insert": "insert",
+    "home": "home",
+    "end": "end",
+    "pageup": "pgup",
+    "pgup": "pgup",
+    "pagedown": "pgdn",
+    "pgdn": "pgdn",
+    "up": "up",
+    "down": "down",
+    "left": "left",
+    "right": "right",
+    # Function keys
+    "f1": "f1",
+    "f2": "f2",
+    "f3": "f3",
+    "f4": "f4",
+    "f5": "f5",
+    "f6": "f6",
+    "f7": "f7",
+    "f8": "f8",
+    "f9": "f9",
+    "f10": "f10",
+    "f11": "f11",
+    "f12": "f12",
+    # Common combos (shortcuts)
+    "ctrl-alt-delete": "ctrl-alt-delete",
+    "ctrl-alt-f2": "ctrl-alt-f2",
+}
+
+
+def _parse_key_combo(key: str) -> str:
+    """Convert a human-readable key or combo to QEMU Monitor key code.
+
+    Examples:
+        'enter' -> 'ret'
+        'ctrl-alt-delete' -> 'ctrl-alt-delete'
+        'win-r' -> 'meta_l-r'
+        'a' -> 'a'
+        'shift-a' -> 'shift-a'
+
+    Args:
+        key: Key name or hyphen-separated combo.
+
+    Returns:
+        QEMU Monitor key code string.
+    """
+    key_lower = key.lower().strip()
+
+    # Fast path: full combo already mapped
+    if key_lower in _QEMU_KEY_MAP:
+        return _QEMU_KEY_MAP[key_lower]
+
+    parts = key_lower.split("-")
+    mapped = [_QEMU_KEY_MAP.get(p, p) for p in parts]
+    return "-".join(mapped)
 
 
 class ProxmoxClient:
@@ -312,6 +394,75 @@ class ProxmoxClient:
             str,
             self.api.nodes(node).lxc(vmid).migrate.post(target=target, online=int(online)),
         )
+
+    # --- Console Interaction (Screenshot & Sendkey) ---
+
+    def screenshot_vm(self, node: str, vmid: int) -> bytes:
+        """Capture a PNG screenshot of a QEMU VM's display via the Proxmox VNC tunnel.
+
+        Opens a VNC websocket tunnel (vncproxy + vncwebsocket API calls), performs
+        the RFB handshake, requests a full raw framebuffer update, and encodes it
+        as PNG. This is the same mechanism noVNC uses in the Proxmox web UI.
+
+        Requires the 'VM.Console' privilege on the VM.
+
+        Args:
+            node: Proxmox node name.
+            vmid: QEMU VM ID.
+
+        Returns:
+            PNG image data as bytes.
+        """
+        from mcp_proxmox.vnc import capture_vnc_screenshot
+
+        # 1. Open a VNC proxy ticket
+        proxy = cast(
+            dict[str, Any],
+            self.api.nodes(node).qemu(vmid).vncproxy.post(websocket=1),
+        )
+        ticket_port = int(proxy["port"])
+        ticket = str(proxy["ticket"])
+
+        # 2. Authorize the websocket connection with the ticket. The response
+        #    only carries a user/subprotocol pair that is not needed here —
+        #    the actual tunnel goes through pveproxy on the API port.
+        self.api.nodes(node).qemu(vmid).vncwebsocket.get(port=ticket_port, vncticket=ticket)
+
+        # 3. Connect to the tunnel via pveproxy (like noVNC does) and capture
+        #    a full framebuffer as PNG.
+        ticket_port_str = str(ticket_port)
+        api_path = (
+            f"/api2/json/nodes/{node}/qemu/{vmid}/vncwebsocket"
+            f"?port={ticket_port_str}&vncticket={quote(ticket, safe='')}"
+        )
+        auth_header = f"PVEAPIToken={self._config.token_id}={self._config.token_secret}"
+        return capture_vnc_screenshot(
+            host=self._config.host,
+            ws_port=ticket_port,
+            use_ssl=True,
+            verify_ssl=self._config.verify_ssl,
+            timeout=20.0,
+            api_port=self._config.port,
+            api_path=api_path,
+            auth_header=auth_header,
+            password=ticket,  # the VNC proxy ticket doubles as the VNC password
+        )
+
+    def sendkey_vm(self, node: str, vmid: int, key: str) -> None:
+        """Send a key or key combination to a QEMU VM via the Proxmox sendkey endpoint.
+
+        Uses PUT /api2/json/nodes/{node}/qemu/{vmid}/sendkey with the 'key' parameter.
+        The key is converted from human-readable form to QEMU Monitor key codes.
+
+        Requires the 'VM.Console' privilege on the VM.
+
+        Args:
+            node: Proxmox node name.
+            vmid: QEMU VM ID.
+            key: QEMU key code string (e.g. 'ctrl-alt-delete', 'ret', 'esc').
+        """
+        qemu_key = _parse_key_combo(key)
+        self.api.nodes(node).qemu(vmid).sendkey.put(key=qemu_key)
 
     def get_rrd_data(
         self, node: str, vmid: int, guest_type: str, timeframe: str = "hour"

@@ -54,6 +54,7 @@ PROXMOX_VERIFY_SSL=false            # Default: false
    - `VM.Config.CPU` — change CPU allocation
    - `VM.Config.Memory` — change memory allocation
    - `VM.Monitor` — access QEMU monitor (for metrics)
+   - `VM.Console` — console interaction tools (screenshots, keyboard input)
    - `VM.Migrate` — migrate VMs/CTs between nodes
    - `Sys.Modify` — manage firewall rules
    - `VM.Config.Cloudinit` — configure cloud-init parameters
@@ -157,6 +158,16 @@ Add to Cursor Settings > MCP with the same configuration as above.
 
 > **Note:** `exec_command` requires `qemu-guest-agent` installed and running inside the VM. Not supported for LXC containers (Proxmox API limitation).
 
+### Console Interaction
+
+| Tool | Description |
+|------|-------------|
+| `vm_screenshot` | Capture a PNG screenshot of a QEMU VM's display (login prompt, boot messages, installer, GUI) |
+| `vm_send_key` | Send a key or combination to a VM console (requires confirmation) |
+| `vm_send_text` | Type ASCII text into a VM console (US layout; requires confirmation) |
+
+> **Note:** Console tools do not require `qemu-guest-agent` and need only the `VM.Console` privilege. `vm_screenshot` opens the same VNC websocket tunnel the Proxmox web UI uses (RFB 3.8 with DES-based VNC auth) and is implemented in pure stdlib (custom WebSocket client + DES). Only QEMU VMs are supported. Text entry is layout-dependent: `vm_send_text` maps ASCII to a US keyboard layout (Shift-mapping for uppercase and symbols); non-ASCII input (e.g. Cyrillic) is not supported by the sendkey protocol.
+
 ### Snapshots
 
 | Tool | Description |
@@ -233,6 +244,8 @@ Once connected, you can ask your AI assistant:
 - "Restore the latest backup of container 101"
 - "Run 'df -h' on VM 100"
 - "Check if nginx is running on VM 200"
+- "Take a screenshot of VM 100 so I can see the console"
+- "The VM is stuck at a login prompt — type 'root' and press Enter"
 - "Show me the network bridges on node pve"
 - "Give VM 100 more CPU — bump it to 8 cores"
 - "Add 50GB of disk to container 101"
