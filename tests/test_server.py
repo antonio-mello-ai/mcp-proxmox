@@ -33,3 +33,7 @@ def test_server_registers_tools() -> None:
         "vm_send_text",
     ):
         assert expected in names
+
+    by_name = {tool.name: tool for tool in tools}
+    assert by_name["vm_send_key"].inputSchema["properties"]["confirm"]["default"] is False
+    assert by_name["vm_send_text"].inputSchema["properties"]["confirm"]["default"] is False

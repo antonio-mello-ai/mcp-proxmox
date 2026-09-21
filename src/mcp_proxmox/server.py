@@ -468,7 +468,7 @@ def vm_screenshot(vmid: int) -> Image:
 
 
 @mcp.tool()
-def vm_send_key(vmid: int, key: str) -> str:
+def vm_send_key(vmid: int, key: str, confirm: bool = False) -> str:
     """Send a key or key combination to a QEMU VM's console.
 
     The VM must be running. Key names are human-readable and auto-converted
@@ -490,12 +490,13 @@ def vm_send_key(vmid: int, key: str) -> str:
     Args:
         vmid: The numeric ID of the QEMU VM.
         key: Key name or hyphen-separated combo (e.g. 'enter', 'ctrl-alt-delete', 'win-r').
+        confirm: Must be true to send the key to the VM console.
     """
-    return _to_text(console.vm_send_key(_get_client(), vmid, key))
+    return _to_text(console.vm_send_key(_get_client(), vmid, key, confirm=confirm))
 
 
 @mcp.tool()
-def vm_send_text(vmid: int, text: str, delay: float = 0.05) -> str:
+def vm_send_text(vmid: int, text: str, delay: float = 0.05, confirm: bool = False) -> str:
     """Type a text string into a QEMU VM's console, character by character.
 
     Each character is sent as an individual keypress. Use this to type
@@ -510,8 +511,9 @@ def vm_send_text(vmid: int, text: str, delay: float = 0.05) -> str:
         vmid: The numeric ID of the QEMU VM.
         text: Text string to type into the VM console (e.g. 'administrator\nadmin\n').
         delay: Delay between keypresses in seconds (default 0.05).
+        confirm: Must be true to type the text into the VM console.
     """
-    return _to_text(console.vm_send_text(_get_client(), vmid, text, delay))
+    return _to_text(console.vm_send_text(_get_client(), vmid, text, delay, confirm=confirm))
 
 
 # --- Monitoring Tools ---

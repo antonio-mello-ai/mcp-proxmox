@@ -433,13 +433,14 @@ class ProxmoxClient:
         ticket_port_str = str(ticket_port)
         api_path = (
             f"/api2/json/nodes/{node}/qemu/{vmid}/vncwebsocket"
-            f"?port={ticket_port_str}&vncticket={quote(ticket)}"
+            f"?port={ticket_port_str}&vncticket={quote(ticket, safe='')}"
         )
         auth_header = f"PVEAPIToken={self._config.token_id}={self._config.token_secret}"
         return capture_vnc_screenshot(
             host=self._config.host,
             ws_port=ticket_port,
-            use_ssl=self._config.port == 443,
+            use_ssl=True,
+            verify_ssl=self._config.verify_ssl,
             timeout=20.0,
             api_port=self._config.port,
             api_path=api_path,

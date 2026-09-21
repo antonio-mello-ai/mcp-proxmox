@@ -11,6 +11,7 @@ base64, hashlib, os) — no extra dependencies.
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 import socket
 import ssl
@@ -989,6 +990,7 @@ class _WebSocketClient:
         timeout: float,
         path: str = "/",
         extra_headers: dict[str, str] | None = None,
+        verify_ssl: bool = True,
     ) -> _WebSocketClient:
         """Open a TCP (optionally TLS) connection and perform the WS upgrade.
 
@@ -999,44 +1001,69 @@ class _WebSocketClient:
             timeout: Socket timeout in seconds.
             path: Request path including query string.
             extra_headers: Optional extra HTTP headers (e.g. Authorization).
+            verify_ssl: Verify the TLS certificate and hostname when TLS is enabled.
         """
         raw = socket.create_connection((host, port), timeout=timeout)
-        sock: socket.socket
-        if use_ssl:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            sock = ctx.wrap_socket(raw, server_hostname=host)
-        else:
-            sock = raw
+        sock: socket.socket = raw
+        try:
+            if use_ssl:
+                context = (
+                    ssl.create_default_context() if verify_ssl else ssl._create_unverified_context()
+                )
+                sock = context.wrap_socket(raw, server_hostname=host)
 
-        key = base64.b64encode(os.urandom(16)).decode()
-        headers = {
-            "Host": f"{host}:{port}",
-            "Upgrade": "websocket",
-            "Connection": "Upgrade",
-            "Sec-WebSocket-Key": key,
-            "Sec-WebSocket-Version": "13",
-        }
-        if extra_headers:
-            headers.update(extra_headers)
-        request = f"GET {path} HTTP/1.1\r\n" + "".join(f"{k}: {v}\r\n" for k, v in headers.items())
-        sock.sendall(request.encode("latin-1") + b"\r\n")
+            key = base64.b64encode(os.urandom(16)).decode()
+            headers = {
+                "Host": f"{host}:{port}",
+                "Upgrade": "websocket",
+                "Connection": "Upgrade",
+                "Sec-WebSocket-Key": key,
+                "Sec-WebSocket-Version": "13",
+            }
+            if extra_headers:
+                headers.update(extra_headers)
+            request = f"GET {path} HTTP/1.1\r\n" + "".join(
+                f"{name}: {value}\r\n" for name, value in headers.items()
+            )
+            sock.sendall(request.encode("latin-1") + b"\r\n")
 
-        header = b""
-        while b"\r\n\r\n" not in header:
-            chunk = sock.recv(_RECV_SIZE)
-            if not chunk:
-                raise VNCError("Connection closed during WebSocket handshake")
-            header += chunk
-        header, _, rest = header.partition(b"\r\n\r\n")
-        status_line = header.split(b"\r\n", 1)[0]
-        if b" 101 " not in status_line:
-            raise VNCError(f"WebSocket handshake failed: {status_line.decode(errors='replace')}")
+            header = b""
+            while b"\r\n\r\n" not in header:
+                chunk = sock.recv(_RECV_SIZE)
+                if not chunk:
+                    raise VNCError("Connection closed during WebSocket handshake")
+                header += chunk
+            header, _, rest = header.partition(b"\r\n\r\n")
+            status_line, *header_lines = header.split(b"\r\n")
+            if b" 101 " not in status_line:
+                raise VNCError(
+                    f"WebSocket handshake failed: {status_line.decode(errors='replace')}"
+                )
 
-        client = cls(sock)
-        client._buf = rest
-        return client
+            response_headers = {
+                name.strip().lower(): value.strip()
+                for line in header_lines
+                if b":" in line
+                for name, value in (line.split(b":", 1),)
+            }
+            expected_accept = base64.b64encode(
+                hashlib.sha1((key + _WS_GUID).encode("ascii")).digest()
+            )
+            if response_headers.get(b"sec-websocket-accept") != expected_accept:
+                raise VNCError("WebSocket handshake returned an invalid Sec-WebSocket-Accept")
+
+            client = cls(sock)
+            client._buf = rest
+            return client
+        except Exception:
+            sock.close()
+            if sock is not raw:
+                raw.close()
+            raise
+
+    def close(self) -> None:
+        """Close the underlying transport."""
+        self._sock.close()
 
     def send(self, payload: bytes) -> None:
         """Send one masked binary frame (client frames must be masked)."""
@@ -1067,6 +1094,7 @@ class _WebSocketClient:
     def read(self) -> bytes:
         """Read the next complete data message (handles ping/pong and fragments)."""
         message = b""
+        fragmented = False
         while True:
             b1, b2 = self._recv_exact(2)
             fin = bool(b1 & 0x80)
@@ -1079,8 +1107,10 @@ class _WebSocketClient:
                 length = struct.unpack(">Q", self._recv_exact(8))[0]
             mask = self._recv_exact(4) if masked else None
             payload = self._recv_exact(length)
-            if mask:
-                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+            if mask is not None:
+                raise VNCError("Received a masked WebSocket frame from the server")
+            if opcode >= 0x8 and (not fin or length > 125):
+                raise VNCError("Received an invalid WebSocket control frame")
             if opcode == 0x8:  # close
                 raise VNCError("WebSocket closed by remote")
             if opcode == 0x9:  # ping -> pong
@@ -1088,11 +1118,21 @@ class _WebSocketClient:
                 continue
             if opcode == 0xA:  # pong
                 continue
-            if opcode in (0x0, 0x1, 0x2):  # continuation / text / binary
+            if opcode == 0x0:
+                if not fragmented:
+                    raise VNCError("Unexpected WebSocket continuation frame")
                 message += payload
                 if fin:
                     return message
-            # unknown opcodes are ignored
+            elif opcode in (0x1, 0x2):
+                if fragmented:
+                    raise VNCError("Received a new WebSocket message before final fragment")
+                message = payload
+                if fin:
+                    return message
+                fragmented = True
+            else:
+                raise VNCError(f"Unsupported WebSocket opcode {opcode}")
 
     def _send_pong(self, payload: bytes) -> None:
         frame = bytearray([0x8A])
@@ -1152,6 +1192,7 @@ def capture_vnc_screenshot(
     api_path: str | None = None,
     auth_header: str | None = None,
     password: str | None = None,
+    verify_ssl: bool = True,
 ) -> bytes:
     """Connect to a Proxmox VNC websocket tunnel and capture a full framebuffer.
 
@@ -1168,6 +1209,7 @@ def capture_vnc_screenshot(
         password: Password for VNC Authentication (security type 2). For
             Proxmox tunnels this is the ticket returned by ``vncproxy``
             (starting with ``PVEVNC:``).
+        verify_ssl: Verify the TLS certificate and hostname when TLS is enabled.
 
     Returns:
         PNG-encoded screenshot bytes.
@@ -1182,11 +1224,25 @@ def capture_vnc_screenshot(
     if api_port is not None and api_path is not None:
         # Connect through pveproxy, like the web UI's noVNC client does
         ws = _WebSocketClient.connect(
-            host, api_port, use_ssl, timeout, path=api_path, extra_headers=headers
+            host,
+            api_port,
+            use_ssl,
+            timeout,
+            path=api_path,
+            extra_headers=headers,
+            verify_ssl=verify_ssl,
         )
     else:
         # Direct connection to the tunnel port (e.g. local on the node)
-        ws = _WebSocketClient.connect(host, ws_port, use_ssl, timeout)
+        ws = _WebSocketClient.connect(host, ws_port, use_ssl, timeout, verify_ssl=verify_ssl)
+    try:
+        return _capture_vnc_session(ws, password)
+    finally:
+        ws.close()
+
+
+def _capture_vnc_session(ws: _WebSocketClient, password: str | None) -> bytes:
+    """Perform one RFB screenshot exchange over an open WebSocket."""
     stream = _RFBStream(ws)
 
     # --- RFB version handshake ---
@@ -1256,6 +1312,11 @@ def capture_vnc_screenshot(
                 encoding = struct.unpack(">i", stream.read_exact(4))[0]
                 if encoding != 0:
                     raise VNCError(f"Unsupported rectangle encoding {encoding}")
+                if not w or not h or x + w > width or y + h > height:
+                    raise VNCError(
+                        f"Invalid framebuffer rectangle {x},{y} {w}x{h} "
+                        f"for framebuffer {width}x{height}"
+                    )
                 data = stream.read_exact(w * h * 4)
                 src_row = w * 4
                 for row in range(h):

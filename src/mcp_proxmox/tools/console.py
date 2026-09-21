@@ -87,6 +87,7 @@ def vm_send_key(
     client: ProxmoxClient,
     vmid: int,
     key: str,
+    confirm: bool = False,
 ) -> dict[str, Any]:
     """Send a key or key combination to a QEMU VM's console.
 
@@ -112,6 +113,7 @@ def vm_send_key(
         client: ProxmoxClient instance.
         vmid: The numeric ID of the QEMU VM.
         key: Key name or hyphen-separated combo (e.g. 'enter', 'ctrl-alt-delete').
+        confirm: Must be true to send the key to the VM console.
 
     Returns:
         Dict with success status and details.
@@ -123,6 +125,15 @@ def vm_send_key(
         raise ToolError("Key cannot be empty")
 
     node, guest_name = _resolve_running_qemu(client, vmid, "send keys")
+
+    if not confirm:
+        return {
+            "warning": f"This will send key '{key}' to VM '{guest_name}' ({vmid}). "
+            "Call again with confirm=true to proceed.",
+            "vmid": vmid,
+            "name": guest_name,
+            "key": key,
+        }
 
     try:
         client.sendkey_vm(node, vmid, key)
@@ -143,6 +154,7 @@ def vm_send_text(
     vmid: int,
     text: str,
     delay: float = 0.05,
+    confirm: bool = False,
 ) -> dict[str, Any]:
     """Type a text string into a QEMU VM's console, character by character.
 
@@ -158,6 +170,7 @@ def vm_send_text(
         vmid: The numeric ID of the QEMU VM.
         text: Text string to type into the VM console.
         delay: Delay between keypresses in seconds (default 0.05).
+        confirm: Must be true to type the text into the VM console.
 
     Returns:
         Dict with success status and number of characters typed.
@@ -167,6 +180,8 @@ def vm_send_text(
     """
     if not text:
         raise ToolError("Text cannot be empty")
+    if delay < 0:
+        raise ToolError("Delay cannot be negative")
 
     node, guest_name = _resolve_running_qemu(client, vmid, "send text")
 
@@ -216,9 +231,7 @@ def vm_send_text(
         "?": "shift-slash",
     }
 
-    sent_count = 0
-    errors: list[str] = []
-
+    keys: list[tuple[str, str]] = []
     for char in text:
         if char in char_map:
             qemu_key = char_map[char]
@@ -231,9 +244,21 @@ def vm_send_text(
         elif "A" <= char <= "Z":
             qemu_key = f"shift-{char.lower()}"
         else:
-            errors.append(f"Unsupported character (US layout ASCII only): {char!r}")
-            continue
+            raise ToolError(f"Unsupported character (US layout ASCII only): {char!r}")
 
+        keys.append((char, qemu_key))
+
+    if not confirm:
+        return {
+            "warning": f"This will type {len(text)} character(s) into VM "
+            f"'{guest_name}' ({vmid}). Call again with confirm=true to proceed.",
+            "vmid": vmid,
+            "name": guest_name,
+            "characters": len(text),
+        }
+
+    sent_count = 0
+    for char, qemu_key in keys:
         try:
             client.sendkey_vm(node, vmid, qemu_key)
             sent_count += 1
@@ -248,11 +273,9 @@ def vm_send_text(
     result: dict[str, Any] = {
         "vmid": vmid,
         "name": guest_name,
-        "text_sent": text[:sent_count],
+        "text_sent": text,
         "characters_sent": sent_count,
         "total_characters": len(text),
-        "success": sent_count == len(text),
+        "success": True,
     }
-    if errors:
-        result["errors"] = errors
     return result

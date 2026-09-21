@@ -163,8 +163,8 @@ Add to Cursor Settings > MCP with the same configuration as above.
 | Tool | Description |
 |------|-------------|
 | `vm_screenshot` | Capture a PNG screenshot of a QEMU VM's display (login prompt, boot messages, installer, GUI) |
-| `vm_send_key` | Send a key or combination to a VM console (e.g. `enter`, `ctrl-alt-delete`, `win-r`) |
-| `vm_send_text` | Type a text string into a VM console character by character (ASCII, US layout) |
+| `vm_send_key` | Send a key or combination to a VM console (requires confirmation) |
+| `vm_send_text` | Type ASCII text into a VM console (US layout; requires confirmation) |
 
 > **Note:** Console tools do not require `qemu-guest-agent` and need only the `VM.Console` privilege. `vm_screenshot` opens the same VNC websocket tunnel the Proxmox web UI uses (RFB 3.8 with DES-based VNC auth) and is implemented in pure stdlib (custom WebSocket client + DES). Only QEMU VMs are supported. Text entry is layout-dependent: `vm_send_text` maps ASCII to a US keyboard layout (Shift-mapping for uppercase and symbols); non-ASCII input (e.g. Cyrillic) is not supported by the sendkey protocol.
 
